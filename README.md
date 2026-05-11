@@ -1,9 +1,9 @@
-
+```
 Dependencies:
 npm init -y
 npm install express mssql bcryptjs jsonwebtoken dotenv cors multer axios
 npm install --save-dev nodemon
-
+```
 ## 📁 Project Structure
 ```text
 ├── config/
