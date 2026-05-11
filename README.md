@@ -4,19 +4,21 @@ npm init -y
 npm install express mssql bcryptjs jsonwebtoken dotenv cors multer axios
 npm install --save-dev nodemon
 
-File Structure:
+## 📁 Project Structure
+```text
 ├── config/
-│   └── db.js              ← SQL Server connection
+│   └── db.js              # SQL Server connection logic
 ├── controllers/
-│   ├── authController.js  ← register, login, logout
-│   └── userController.js  ← get/update profile
+│   ├── authController.js  # Logic for register, login, and logout
+│   └── userController.js  # Logic for profile management
 ├── middleware/
-│   ├── authMiddleware.js  ← protect routes with JWT
-│   └── errorMiddleware.js ← global error handler
+│   ├── authMiddleware.js  # JWT validation & route protection
+│   └── errorMiddleware.js # Global centralized error handling
 ├── routes/
-│   ├── authRoutes.js
-│   └── userRoutes.js
-├── .env                   ← secrets (never commit this)
-├── .gitignore
-├── server.js              ← entry point
-└── package.json
+│   ├── authRoutes.js      # Authentication endpoints
+│   └── userRoutes.js      # User-related endpoints
+├── .env                   # Environment variables (DB credentials, JWT secrets)
+├── .gitignore             # Files to exclude from Git
+├── server.js              # Main entry point
+└── package.json           # Dependencies and scripts
+```
