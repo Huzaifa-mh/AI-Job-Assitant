@@ -48,10 +48,10 @@ const register = async(req, res,next) => {
 // post request for the user login /api/auth/login
 const login = async(req, res, next) => {
     try{
-        const  {email, pasword} = req.body;
+        const { email, pasword } = req.body;
         if(!email || !password) {
             return res.status(400).json({message: "Email and password are required"});
-
+        }
             const pool = getPool();
 
             const result = await pool.request()
@@ -79,7 +79,7 @@ const login = async(req, res, next) => {
                     },
                     token,
                 });
-            }
+            
     }catch(error){
         next(error);
     }
