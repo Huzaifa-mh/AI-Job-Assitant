@@ -44,3 +44,45 @@ const register = async(req, res,next) => {
         next(error);
     }
 };
+
+// post request for the user login /api/auth/login
+const login = async(req, res, next) => {
+    try{
+        const  {email, pasword} = req.body;
+        if(!email || !password) {
+            return res.status(400).json({message: "Email and password are required"});
+
+            const pool = getPool();
+
+            const result = await pool.request()
+                .input('email', sql.VarChar, email)
+                .query(`Select * from Users where email = @email`);
+
+                if(result.recordset.length === 0){
+                    return res.status(401).json({message: 'Invalid email or password'});
+                }
+
+                const user = result.recordset[0];
+                const isMatch = await bcrypt.compare(password, user.password_hash);
+
+                if(!isMatch)
+                    return res.status(401).json({message: "Invalid email or password"});
+
+                const token = generateToken(user.user_id, user.email);
+
+                res.json({
+                    user: {
+                        user_id: user.user_id,
+                        full_name: user.full_name,
+                        email: user.email,
+                        role: user.role
+                    },
+                    token,
+                });
+            }
+    }catch(error){
+        next(error);
+    }
+}
+
+module.exports = { register, login};
