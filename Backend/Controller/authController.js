@@ -48,7 +48,7 @@ const register = async(req, res,next) => {
 // post request for the user login /api/auth/login
 const login = async(req, res, next) => {
     try{
-        const { email, pasword } = req.body;
+        const { email, password } = req.body;
         if(!email || !password) {
             return res.status(400).json({message: "Email and password are required"});
         }
