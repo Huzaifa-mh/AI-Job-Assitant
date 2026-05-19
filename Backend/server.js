@@ -2,10 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { connectDB } = require('./config/db');
-const { errorHandler } = require('./middleware/errorMiddleware');
+const { errorHandler } = require('./Middleware/errorMiddleware');
 
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require ('./routes/userRoutes');
+const authRoutes = require('./Routes/authRoutes');
+const userRoutes = require('./Routes/userRoutes');
 
 dotenv.config();const app =express();
 const PORT = process.env.PORT || 5000;
@@ -22,4 +22,15 @@ app.use(errorHandler);
 connectDB().then((() => {
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }));
+
+const path = require('path');
+
+// add after existing route imports
+const resumeRoutes = require('./Routes/resumeUploadRoutes');
+
+// add after existing app.use routes
+app.use('/api/resumes', resumeRoutes);
+
+// serve uploaded files statically (optional, for previewing)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
