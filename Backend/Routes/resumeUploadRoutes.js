@@ -5,11 +5,11 @@ const { protect } = require('../Middleware/authMiddleware');
 const {
     uploadResume,
     getResumeStatus,
-    getMyResume,
+    getMyResumes,
 } = require('../Controller/resumeUploadController');
 
 router.post('/upload', protect, upload.single('resume'), uploadResume);
-router.get('/my', protect, getResumeStatus);
-router.get('/status/:resume_id', protect, getMyResume);
+router.get('/my', protect, getMyResumes);
+router.get('/status/:resume_id', protect, getResumeStatus);
 
 module.exports = router;
