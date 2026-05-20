@@ -25,12 +25,6 @@ connectDB().then((() => {
 
 const path = require('path');
 
-// add after existing route imports
 const resumeRoutes = require('./Routes/resumeUploadRoutes');
-
-// add after existing app.use routes
-app.use('/api/resumes', resumeRoutes);
-
-// serve uploaded files statically (optional, for previewing)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
+// add this line after your existing app.use lines:
+app.use('/api/resume', resumeRoutes);
