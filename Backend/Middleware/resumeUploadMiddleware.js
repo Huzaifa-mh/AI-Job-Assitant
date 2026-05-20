@@ -1,13 +1,13 @@
 const multer = require('multer'); //for storing the file in the server
 const path = require('path');
-const { v4: uuidv4 } = require('uuid'); //for generating unique file names
+// const { v4: uuidv4 } = require('uuid'); //for generating unique file names
 
 const storage = multer.diskStorage({
     destination:(req, file, cb) => {
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) =>{
-        const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+        const uniqueName = `${req.user.user_id}_${Date.now()}${path.extname(file.originalname)}`;
         cb(null, uniqueName);
     },
 });
