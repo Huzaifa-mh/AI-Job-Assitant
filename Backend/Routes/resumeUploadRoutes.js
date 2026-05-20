@@ -10,6 +10,6 @@ const {
 
 router.post('/upload', protect, upload.single('resume'), uploadResume);
 router.get('/my', protect, getMyResumes);
-router.get('/status/:resume_id', protect, getMyResume);
+router.get('/status/:resume_id', protect, getResumeStatus);
 
 module.exports = router;
