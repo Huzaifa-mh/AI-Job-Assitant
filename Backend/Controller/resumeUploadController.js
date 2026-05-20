@@ -8,36 +8,34 @@ const uploadResume = async (req, res, next) => {
     if (!req.file)
       return res.status(400).json({ message: 'No file uploaded' });
 
-    const pool     = getPool();
+    
     const filePath = req.file.filename; // stored file name in /uploads/
     const userId   = req.user.user_id;
+    const pool     = getPool();
 
     // Insert resume record with status 'pending'
     const result = await pool.request()
       .input('user_id',   sql.Int,     userId)
       .input('file_path', sql.VarChar, filePath)
       .query(`
-        INSERT INTO Resumes (user_id, file_path, raw_text)
-        OUTPUT INSERTED.resume_id, INSERTED.file_path, INSERTED.uploaded_at
-        VALUES (@user_id, @file_path, NULL)
+        INSERT INTO Resumes (user_id, file_path, raw_text, status)
+        OUTPUT INSERTED.resume_id
+        VALUES (@user_id, @file_path, NULL, 'pending')
       `);
 
-    const resume = result.recordset[0];
+    const resume = result.recordset[0].resume_id;
 
     // Tell FastAPI to process this resume asynchronously
     // We don't await this — it processes in the background
     axios.post(`${process.env.FASTAPI_URL}/process-resume`, {
-      resume_id: resume.resume_id,
+      resume_id: resumeId,
       file_path: filePath,
-    }).catch((err) => {
-      console.error('FastAPI processing error:', err.message);
-    });
+    }).catch(err => console.error('FastAPI call failed:', err.message));
 
     res.status(201).json({
-      message:   'Resume uploaded successfully. Processing in background.',
-      resume_id: resume.resume_id,
-      file_path: resume.file_path,
-      uploaded_at: resume.uploaded_at,
+      message:   'Resume uploaded successfully. Processing started.',
+      resume_id: resumeId,
+      status:    'pending',
     });
   } catch (error) {
     next(error);
@@ -52,8 +50,7 @@ const getResumeStatus = async (req, res, next) => {
       .input('resume_id', sql.Int, req.params.resume_id)
       .input('user_id',   sql.Int, req.user.user_id)
       .query(`
-        SELECT resume_id, file_path, uploaded_at,
-               CASE WHEN raw_text IS NULL THEN 'pending' ELSE 'processed' END AS status
+        SELECT resume_id, file_path, status, uploaded_at
         FROM Resumes
         WHERE resume_id = @resume_id AND user_id = @user_id
       `);
@@ -74,8 +71,7 @@ const getMyResumes = async (req, res, next) => {
     const result = await pool.request()
       .input('user_id', sql.Int, req.user.user_id)
       .query(`
-        SELECT resume_id, file_path, uploaded_at,
-               CASE WHEN raw_text IS NULL THEN 'pending' ELSE 'processed' END AS status
+        SELECT resume_id, file_path, status, uploaded_at
         FROM Resumes
         WHERE user_id = @user_id
         ORDER BY uploaded_at DESC
