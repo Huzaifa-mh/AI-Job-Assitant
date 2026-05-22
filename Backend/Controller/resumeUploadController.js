@@ -27,7 +27,7 @@ const uploadResume = async (req, res, next) => {
 
     // Tell FastAPI to process this resume asynchronously
     // We don't await this — it processes in the background
-    axios.post(`${process.env.FASTAPI_URL}/process-resume`, {
+    axios.post('http://localhost:8000/process-resume', {
       resume_id: resumeId,
       file_path: filePath,
     }).catch(err => console.error('FastAPI call failed:', err.message));
