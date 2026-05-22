@@ -9,25 +9,26 @@ const uploadResume = async (req, res, next) => {
       return res.status(400).json({ message: 'No file uploaded' });
 
     
-    const filePath = req.file.filename; // stored file name in /uploads/
+    const filename = req.file.filename; // stored file name in /uploads/
+    const filePath = require('path').join(__dirname, '../Uploads', filename); // full path
     const userId   = req.user.user_id;
     const pool     = getPool();
 
     // Insert resume record with status 'pending'
     const result = await pool.request()
       .input('user_id',   sql.Int,     userId)
-      .input('file_path', sql.VarChar, filePath)
+      .input('file_path', sql.VarChar, filename)
       .query(`
         INSERT INTO Resumes (user_id, file_path, raw_text, status)
         OUTPUT INSERTED.resume_id
         VALUES (@user_id, @file_path, NULL, 'pending')
       `);
 
-    const resume = result.recordset[0].resume_id;
+    const resumeId = result.recordset[0].resume_id;
 
     // Tell FastAPI to process this resume asynchronously
     // We don't await this — it processes in the background
-    axios.post(`${process.env.FASTAPI_URL}/process-resume`, {
+    axios.post('http://localhost:8000/process-resume', {
       resume_id: resumeId,
       file_path: filePath,
     }).catch(err => console.error('FastAPI call failed:', err.message));
