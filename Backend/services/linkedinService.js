@@ -1,13 +1,14 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const fetchLinkedInJobs = async (title_filter , location_filter , limit = 10) => {
+const fetchLinkedInJobs = async (title_filter , location_filter, description_filter, limit = 10) => {
   const options = {
     method: 'GET',
-    url: 'https://linkedin-job-search-api.p.rapidapi.com/active-jb-24h',
+    url: 'https://linkedin-job-search-api.p.rapidapi.com/active-jb-7d',
     params: {
       title_filter,
       location_filter,
+      description_filter,
       limit: String(limit),
     },
     headers: {
