@@ -6,7 +6,7 @@ const {
     getAllJobs,
     getJobById,
     clearOldJobs,
-} = require('../Contoller/jobController');
+} = require('../Controller/jobController');
 const { protect } = require('../Middleware/authMiddleware');
 
 router.post('/fetch', protect, fetchAndStoreJobs);
