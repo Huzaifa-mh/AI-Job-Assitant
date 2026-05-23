@@ -28,3 +28,8 @@ const path = require('path');
 const resumeRoutes = require('./Routes/resumeUploadRoutes');
 // add this line after your existing app.use lines:
 app.use('/api/resume', resumeRoutes);
+
+const jobRoutes = require('./routes/jobRoutes');
+
+// add after your existing routes:
+app.use('/api/jobs', jobRoutes);
