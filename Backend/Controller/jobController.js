@@ -5,10 +5,10 @@ const { fetchLinkedInJobs } = require('../services/linkedinService');
 // Fetches from RapidAPI and caches into SQL Server
 const fetchAndStoreJobs = async (req, res, next) => {
   try {
-    const { keyword = 'freelance developer', location = '', limit = 10 } = req.body;
+    const { title_filter , location_filter, limit = 10 } = req.body;
 
     // 1. Pull jobs from LinkedIn via RapidAPI
-    const jobs = await fetchLinkedInJobs(keyword, location, limit);
+    const jobs = await fetchLinkedInJobs(title_filter, location_filter, limit);
 
     if (!jobs || jobs.length === 0)
       return res.status(404).json({ message: 'No jobs returned from API' });
