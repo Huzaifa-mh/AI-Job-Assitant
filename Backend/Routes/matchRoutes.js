@@ -5,7 +5,7 @@ const {
   matchAllJobs,
   getMatchResults,
   getTopMatches,
-} = require('../controllers/matchController');
+} = require('../Controller/matchController');
 const { protect } = require('../middleware/authMiddleware');
 
 router.post('/job',     protect, matchSingleJob);
