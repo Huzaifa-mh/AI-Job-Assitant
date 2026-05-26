@@ -1,34 +1,38 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const fetchLinkedInJobs = async (title_filter , location_filter, description_filter, limit = 10) => {
+const fetchLinkedInJobs = async (query, country = 'Pakistan', date_posted = 'week', employment_types = 'FULLTIME', page = 1) => {
   const options = {
     method: 'GET',
-    url: 'https://linkedin-job-search-api.p.rapidapi.com/active-jb-7d',
+    url: 'https://jsearch.p.rapidapi.com/search-v2',
     params: {
-      title_filter,
-      location_filter,
-      description_filter,
-      limit: String(limit),
+      query,
+      country,
+      date_posted,
+      employment_types,
+      page: String(page),
     },
     headers: {
-      'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
       'x-rapidapi-host': process.env.RAPIDAPI_HOST,
+      'x-rapidapi-key':  process.env.RAPIDAPI_KEY,
     },
   };
 
   const response = await axios.request(options);
 
+  console.log(response.data);
+
   // RapidAPI returns different shapes — normalize it
   const raw = response.data;
-  const jobs = Array.isArray(raw) ? raw : raw?.data ?? raw?.jobs ?? [];
+  const jobs = raw?.data?.jobs || [];
 
   return jobs.map(job => ({
     title:       job.title        || job.job_title        || 'N/A',
-    company:     job.company      || job.company_name     || 'N/A',
-    location:    job.location     || job.job_location     || 'Remote',
-    description: job.description  || job.job_description  || '',
-    job_url:     job.job_url      || job.apply_url        || job.url || '',
+    company:     job.company      || job.employer_name    || 'N/A',
+    location:    job.location     || job.job_city         || job.job_country     || 'Remote',
+    description: job.description  || job.job_description  || job.description_text || 'No description provided.',
+    job_url:     job.job_url      || job.apply_url        || job.job_apply_link || '',
+    source:      job.job_publisher || 'unknown',
   }));
 };
 
