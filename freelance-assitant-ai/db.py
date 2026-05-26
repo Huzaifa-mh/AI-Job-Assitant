@@ -9,6 +9,7 @@ def get_connection():
         server=os.getenv('DB_SERVER'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB_NAME')    
+        database=os.getenv('DB_NAME'),
+        as_dict=True    
     )
     return conn

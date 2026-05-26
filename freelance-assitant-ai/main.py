@@ -116,7 +116,18 @@ async def match_job(data: MatchRequest):
             raise HTTPException(status_code=404, detail="Job not found.")
         
         resume_text = resume_row["raw_text"]
+        if not resume_text:
+            raise HTTPException(
+            status_code=400,
+            detail="Resume text is empty. Process resume first."
+        )
         job_desc = job_row["description"]
+        
+        if not job_desc:
+            raise HTTPException(
+            status_code=400,
+            detail="Job description is empty."
+        )
         
         result = calculate_match(resume_text, job_desc)
         
@@ -161,6 +172,7 @@ async def match_job(data: MatchRequest):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Match job error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
     
 class BulkMatchRequest(BaseModel):
@@ -230,7 +242,7 @@ async def match_all_jobs(data: BulkMatchRequest):
         cursor.close()
         conn.close()
         
-        result.sort(key=lambda x: x["match_score"], reverse=True)
+        results.sort(key=lambda x: x["match_score"], reverse=True)
         
         return {
             "total_jobs_matched": len(results),
