@@ -9,10 +9,10 @@ const fetchAndStoreJobs = async (req, res, next) => {
               country = 'Pakistan',
               date_posted = 'week',
               employment_types = 'FULLTIME',
-              page = 1 } = req.body;
+              num_pages = 1 } = req.body;
 
     // 1. Pull jobs from LinkedIn via RapidAPI
-    const jobs = await fetchLinkedInJobs(query, country, date_posted, employment_types, page);
+    const jobs = await fetchLinkedInJobs(query, country, date_posted, employment_types, num_pages);
 
     if (!jobs || jobs.length === 0)
       return res.status(404).json({ message: 'No jobs returned from API' });
