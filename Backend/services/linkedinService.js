@@ -1,7 +1,7 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const fetchLinkedInJobs = async (query, country = 'Pakistan', date_posted = 'week', employment_types = 'FULLTIME', page = 1) => {
+const fetchLinkedInJobs = async (query, country = 'Pakistan', date_posted = 'week', employment_types = 'FULLTIME', num_pages = 1) => {
   const options = {
     method: 'GET',
     url: 'https://jsearch.p.rapidapi.com/search-v2',
@@ -10,7 +10,7 @@ const fetchLinkedInJobs = async (query, country = 'Pakistan', date_posted = 'wee
       country,
       date_posted,
       employment_types,
-      page: String(page),
+      num_pages: String(num_pages),
     },
     headers: {
       'x-rapidapi-host': process.env.RAPIDAPI_HOST,
