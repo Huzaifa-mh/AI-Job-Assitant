@@ -10,8 +10,8 @@ KNOWN_SKILLS = [
     "typescript", "vue.js", "vue", "angular", "next.js", "svelte",
     # Backend
     "node.js", "node", "express.js", "express", "python", "fastapi",
-    "django", "flask", "rest apis", "graphql", "php", "java", "c#",
-    "ruby on rails", "spring boot",
+    "django", "flask", "rest apis", "graphql", "php", "java", "c#", ".net",
+    "ruby on rails", "spring boot", "nodejs", 
     # Database
     "sql server", "postgresql", "mongodb", "mysql", "redis",
     "firebase", "sqlite", "oracle",
@@ -24,6 +24,10 @@ KNOWN_SKILLS = [
     "data analysis", "deep learning", "langchain", "huggingface",
     # General
     "figma", "rest", "api", "agile", "scrum", "jira",
+    # Add more skills as needed
+    "winforms", "vb.net", "mern/react" , "react native", "react.js" , "reactjs", "flutter", "dart", "swift", "kotlin",
+    "android development", "ios development", "mobile development", "cross-platform development", "xamarin", "ionic", "azure services", "cloud computing", "serverless architecture", "microservices", "graphql api",
+    "restful api",
 ]
 
 def extract_skills(text: str) -> list[str]:
