@@ -34,7 +34,7 @@ const jobRoutes = require('./Routes/jobRoutes');
 // add after your existing routes:
 app.use('/api/jobs', jobRoutes);
 
-const matchRoutes = require('./routes/matchRoutes');
+const matchRoutes = require('./Routes/matchRoutes');
 app.use('/api/match', matchRoutes);
 
 const applyRoutes = require('./Routes/applyRoutes');
