@@ -36,3 +36,6 @@ app.use('/api/jobs', jobRoutes);
 
 const matchRoutes = require('./routes/matchRoutes');
 app.use('/api/match', matchRoutes);
+
+const applyRoutes = require('./Routes/applyRoutes');
+app.use('/api/apply', applyRoutes);
