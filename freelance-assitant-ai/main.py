@@ -257,3 +257,103 @@ async def match_all_jobs(data: BulkMatchRequest):
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+# AI service
+
+class FormFillRequest(BaseModel):
+    user_id:   int
+    resume_id: int
+    fields:    list   # the fields JSON from Playwright
+
+@app.post("/map-form-fields")
+async def map_form_fields(data: FormFillRequest):
+    try:
+        conn   = get_connection()
+        cursor = conn.cursor()
+
+        # 1. Get user profile
+        cursor.execute(
+            "SELECT full_name, email FROM Users WHERE user_id = %s",
+            (data.user_id,)
+        )
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # 2. Get resume raw text
+        cursor.execute(
+            "SELECT raw_text FROM Resumes WHERE resume_id = %s AND user_id = %s",
+            (data.resume_id, data.user_id)
+        )
+        resume_row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        resume_text = resume_row["raw_text"] if resume_row else ""
+
+        # 3. Build field summary for AI
+        field_summary = []
+        for f in data.fields:
+            field_summary.append({
+                "label":    f.get("label", ""),
+                "name":     f.get("name", ""),
+                "type":     f.get("type", "text"),
+                "required": f.get("required", False),
+                "options":  f.get("options", []),
+            })
+
+        # 4. Ask AI to map resume data to fields
+        import requests as req
+
+        prompt = f"""
+You are an AI form-filling assistant. Given a user's resume and a list of job application form fields,
+map the most appropriate value from the resume to each field.
+
+USER PROFILE:
+Name: {user['full_name']}
+Email: {user['email']}
+
+RESUME TEXT:
+{resume_text[:3000]}
+
+FORM FIELDS:
+{json.dumps(field_summary, indent=2)}
+
+Return a JSON array where each item has:
+- "name": the field's name attribute
+- "label": the field's label
+- "suggested_value": the value to fill in (empty string if not applicable)
+- "confidence": "high" | "medium" | "low"
+- "reason": brief explanation of why this value was chosen
+
+Return ONLY valid JSON. No markdown, no explanation outside the JSON.
+"""
+
+        ai_response = req.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type": "application/json"},
+            json={
+                "model":      "claude-sonnet-4-20250514",
+                "max_tokens": 2000,
+                "system":     "You are a precise form-filling assistant. Always return valid JSON only.",
+                "messages":   [{"role": "user", "content": prompt}],
+            },
+            timeout=30
+        )
+
+        raw = ai_response.json()["content"][0]["text"]
+
+        # Clean and parse JSON
+        clean = raw.replace("```json", "").replace("```", "").strip()
+        mapped_fields = json.loads(clean)
+
+        return {
+            "success":      True,
+            "mapped_fields": mapped_fields,
+            "total_fields":  len(mapped_fields),
+        }
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="AI returned invalid JSON")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
