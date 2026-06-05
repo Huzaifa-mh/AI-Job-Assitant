@@ -258,12 +258,10 @@ async def match_all_jobs(data: BulkMatchRequest):
 async def health_check():
     return {"status": "ok"}
 
-# AI service
-
 class FormFillRequest(BaseModel):
     user_id:   int
     resume_id: int
-    fields:    list   # the fields JSON from Playwright
+    fields:    list
 
 @app.post("/map-form-fields")
 async def map_form_fields(data: FormFillRequest):
@@ -291,69 +289,125 @@ async def map_form_fields(data: FormFillRequest):
 
         resume_text = resume_row["raw_text"] if resume_row else ""
 
-        # 3. Build field summary for AI
-        field_summary = []
-        for f in data.fields:
-            field_summary.append({
-                "label":    f.get("label", ""),
-                "name":     f.get("name", ""),
-                "type":     f.get("type", "text"),
-                "required": f.get("required", False),
-                "options":  f.get("options", []),
-            })
+        # 3. Parse useful info from resume using regex
+        import re
 
-        # 4. Ask AI to map resume data to fields
-        import requests as req
+        full_name  = user["full_name"] or ""
+        name_parts = full_name.strip().split()
+        first_name = name_parts[0]                          if len(name_parts) >= 1 else ""
+        last_name  = name_parts[-1]                         if len(name_parts) >= 2 else ""
+        middle_name= " ".join(name_parts[1:-1])             if len(name_parts) >= 3 else ""
+        email      = user["email"] or ""
 
-        prompt = f"""
-You are an AI form-filling assistant. Given a user's resume and a list of job application form fields,
-map the most appropriate value from the resume to each field.
-
-USER PROFILE:
-Name: {user['full_name']}
-Email: {user['email']}
-
-RESUME TEXT:
-{resume_text[:3000]}
-
-FORM FIELDS:
-{json.dumps(field_summary, indent=2)}
-
-Return a JSON array where each item has:
-- "name": the field's name attribute
-- "label": the field's label
-- "suggested_value": the value to fill in (empty string if not applicable)
-- "confidence": "high" | "medium" | "low"
-- "reason": brief explanation of why this value was chosen
-
-Return ONLY valid JSON. No markdown, no explanation outside the JSON.
-"""
-
-        ai_response = req.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={"Content-Type": "application/json"},
-            json={
-                "model":      "claude-sonnet-4-20250514",
-                "max_tokens": 2000,
-                "system":     "You are a precise form-filling assistant. Always return valid JSON only.",
-                "messages":   [{"role": "user", "content": prompt}],
-            },
-            timeout=30
+        # Extract phone from resume text
+        phone_match = re.search(
+            r'(\+?\d[\d\s\-().]{7,}\d)', resume_text
         )
+        phone = phone_match.group(0).strip() if phone_match else ""
 
-        raw = ai_response.json()["content"][0]["text"]
+        # Extract LinkedIn URL from resume text
+        linkedin_match = re.search(
+            r'(https?://(?:www\.)?linkedin\.com/in/[^\s,)\]]+)', resume_text
+        )
+        linkedin_url = linkedin_match.group(0).strip() if linkedin_match else ""
 
-        # Clean and parse JSON
-        clean = raw.replace("```json", "").replace("```", "").strip()
-        mapped_fields = json.loads(clean)
+        # Extract GitHub URL
+        github_match = re.search(
+            r'(https?://(?:www\.)?github\.com/[^\s,)\]]+)', resume_text
+        )
+        github_url = github_match.group(0).strip() if github_match else ""
+
+        # 4. Rule-based field matching
+        SALARY_KEYWORDS   = ["salary", "ctc", "compensation", "pay", "package"]
+        SKIP_FIELD_NAMES  = ["g-recaptcha-response", "recaptcha", "captcha", "csrf"]
+        SKIP_FIELD_TYPES  = ["file"]
+
+        def match_field(field: dict) -> dict:
+            label = field.get("label", "").lower()
+            name  = field.get("name",  "").lower()
+            ftype = field.get("type",  "text").lower()
+            key   = label + " " + name
+
+            # Always skip these
+            if ftype in SKIP_FIELD_TYPES:
+                return build_result(field, "", "skip", "File upload — user handles manually")
+
+            for skip in SKIP_FIELD_NAMES:
+                if skip in key:
+                    return build_result(field, "", "skip", "System field — not fillable")
+
+            # Salary fields — leave blank for user
+            for s in SALARY_KEYWORDS:
+                if s in key:
+                    return build_result(field, "", "skip", "Salary — user fills this manually")
+
+            # Name fields
+            if any(k in key for k in ["first_name", "first name", "firstname", "given name"]):
+                return build_result(field, first_name, "high", "First name from profile")
+
+            if any(k in key for k in ["last_name", "last name", "lastname", "surname", "family name"]):
+                return build_result(field, last_name, "high", "Last name from profile")
+
+            if any(k in key for k in ["middle_name", "middle name", "middlename"]):
+                return build_result(field, middle_name, "high", "Middle name from profile")
+
+            if any(k in key for k in ["full_name", "full name", "fullname", "your name"]):
+                return build_result(field, full_name, "high", "Full name from profile")
+
+            # Contact fields
+            if any(k in key for k in ["email", "e-mail", "email address"]):
+                return build_result(field, email, "high", "Email from profile")
+
+            if any(k in key for k in ["mobile", "cell", "phone", "contact", "telephone"]):
+                return build_result(field, phone, "medium" if phone else "low", 
+                                    "Phone extracted from resume" if phone else "Phone not found in resume")
+
+            # Profile links
+            if any(k in key for k in ["linkedin", "linkedin url", "linkedin profile"]):
+                return build_result(field, linkedin_url, "high" if linkedin_url else "low",
+                                    "LinkedIn URL from resume" if linkedin_url else "LinkedIn URL not found in resume")
+
+            if any(k in key for k in ["github", "github url", "github profile"]):
+                return build_result(field, github_url, "high" if github_url else "low",
+                                    "GitHub URL from resume" if github_url else "GitHub URL not found in resume")
+
+            if any(k in key for k in ["hyperlink", "profile link", "portfolio", "website", "url"]):
+                val = linkedin_url or github_url or ""
+                return build_result(field, val, "medium" if val else "low",
+                                    "Profile link from resume" if val else "No profile link found in resume")
+
+            # Cover letter / summary
+            if any(k in key for k in ["cover letter", "cover_letter", "coverletter", "message", "why", "motivation"]):
+                return build_result(field, "", "skip", "Cover letter — will be handled by proposal generator")
+
+            # Default — cannot determine
+            return build_result(field, "", "low", "Could not determine value from resume")
+
+        def build_result(field, value, confidence, reason):
+            return {
+                "name":            field.get("name",  ""),
+                "label":           field.get("label", ""),
+                "type":            field.get("type",  "text"),
+                "suggested_value": value,
+                "confidence":      confidence,
+                "reason":          reason,
+            }
+
+        # 5. Map all fields
+        mapped_fields   = [match_field(f) for f in data.fields]
+
+        high_confidence = [f for f in mapped_fields if f["confidence"] == "high"]
+        needs_review    = [f for f in mapped_fields if f["confidence"] in ("medium", "low")]
+        skipped         = [f for f in mapped_fields if f["confidence"] == "skip"]
 
         return {
-            "success":      True,
-            "mapped_fields": mapped_fields,
+            "success":       True,
             "total_fields":  len(mapped_fields),
+            "auto_filled":   len(high_confidence),
+            "needs_review":  len(needs_review),
+            "skipped":       len(skipped),
+            "mapped_fields": mapped_fields,
         }
 
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="AI returned invalid JSON")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
