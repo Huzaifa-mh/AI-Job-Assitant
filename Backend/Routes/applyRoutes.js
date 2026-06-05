@@ -1,6 +1,6 @@
 const express = require('express');
 const router  = express.Router();
-const { scanJobForm, mapFormFields } = require('../Controllers/applyController');
+const { scanJobForm, mapFormFields } = require('../Controller/applyController');
 const { protect } = require('../Middleware/authMiddleware');
 
 router.post('/scan',       protect, scanJobForm);    // Step 1: scan form
