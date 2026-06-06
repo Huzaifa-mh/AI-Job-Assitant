@@ -1,9 +1,5 @@
-const express = require('express');
-const router  = express.Router();
-const { scanJobForm, mapFormFields } = require('../Controller/applyController');
-const { protect } = require('../Middleware/authMiddleware');
+const { scanJobForm, mapFormFields, fillForm } = require('../Controller/applyController');
 
-router.post('/scan',       protect, scanJobForm);    // Step 1: scan form
-router.post('/map-fields', protect, mapFormFields);  // Step 2: AI fill
-
-module.exports = router;
+router.post('/scan',       protect, scanJobForm);
+router.post('/map-fields', protect, mapFormFields);
+router.post('/fill',       protect, fillForm);       // ← new

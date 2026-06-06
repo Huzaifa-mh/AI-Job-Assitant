@@ -84,3 +84,39 @@ async def startup():
 @app.get("/health")
 async def health():
     return {"status": "Playwright service running on port 8001"}
+
+from scanner import scan_form_fields, fill_form_fields  # update this import line
+
+class FillRequest(BaseModel):
+    url:           str
+    mapped_fields: list
+
+@app.post("/fill-form")
+async def fill_form(data: FillRequest):
+    # 1. Block unsupported sites
+    blocked, domain = is_blocked(data.url)
+    if blocked:
+        return {
+            "success": False,
+            "blocked": True,
+            "message": f"Form filling not supported for {domain}",
+        }
+
+    if not data.url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid URL")
+
+    # 2. Filter out skip/low confidence + empty values before sending to filler
+    fillable = [
+        f for f in data.mapped_fields
+        if f.get("suggested_value") and f.get("confidence") != "skip"
+    ]
+
+    if not fillable:
+        return {
+            "success": False,
+            "message": "No fillable fields with values to fill",
+        }
+
+    # 3. Fill the form — browser will stay open for user
+    result = await fill_form_fields(data.url, fillable)
+    return result

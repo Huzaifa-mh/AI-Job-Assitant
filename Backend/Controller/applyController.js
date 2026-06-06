@@ -72,3 +72,44 @@ const mapFormFields = async (req, res, next) => {
 };
 
 module.exports = { scanJobForm, mapFormFields };
+
+// POST /api/apply/fill
+// Step 3: Actually fill the form in the browser
+const fillForm = async (req, res, next) => {
+  try {
+    const { job_id, mapped_fields } = req.body;
+
+    if (!job_id || !mapped_fields)
+      return res.status(400).json({ message: 'job_id and mapped_fields are required' });
+
+    // Get job URL
+    const pool   = getPool();
+    const result = await pool.request()
+      .input('job_id', sql.Int, job_id)
+      .query('SELECT job_url FROM Jobs WHERE job_id = @job_id');
+
+    if (result.recordset.length === 0)
+      return res.status(404).json({ message: 'Job not found' });
+
+    const job_url = result.recordset[0].job_url;
+
+    // Send to Playwright filler
+    // Use longer timeout since browser stays open waiting for user
+    const response = await axios.post(
+      `${PLAYWRIGHT_URL}/fill-form`,
+      { url: job_url, mapped_fields },
+      { timeout: 660000 }  // 11 minutes — matches the 10 min browser wait
+    );
+
+    res.json(response.data);
+
+  } catch (error) {
+    if (error.code === 'ECONNABORTED')
+      return res.json({ success: true, message: 'Session ended — browser was closed' });
+    if (error.response?.data)
+      return res.status(error.response.status).json(error.response.data);
+    next(error);
+  }
+};
+
+module.exports = { scanJobForm, mapFormFields, fillForm }; // update exports
