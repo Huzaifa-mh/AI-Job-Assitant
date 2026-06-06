@@ -71,7 +71,7 @@ const mapFormFields = async (req, res, next) => {
   }
 };
 
-module.exports = { scanJobForm, mapFormFields };
+// module.exports = { scanJobForm, mapFormFields };
 
 // POST /api/apply/fill
 // Step 3: Actually fill the form in the browser

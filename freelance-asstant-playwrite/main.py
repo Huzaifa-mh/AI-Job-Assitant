@@ -1,15 +1,13 @@
-import sys
-import asyncio
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(
-        asyncio.WindowsProactorEventLoopPolicy()
-    )
-
-from fastapi import FastAPI
+# import sys
+# import asyncio
+# if sys.platform == "win32":
+#     asyncio.set_event_loop_policy(
+#         asyncio.WindowsProactorEventLoopPolicy()
+#     )
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from scanner import scan_form_fields
-from blocker import is_blocked
+from blocker import is_blocked, should_skip_field
 import asyncio
 
 app = FastAPI()
