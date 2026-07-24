@@ -1,5 +1,8 @@
-from playwright.async_api import async_playwright
+
 import asyncio
+import random
+import asyncio
+from playwright.async_api import async_playwright
 
 async def scan_form_fields(url: str) -> dict:
     async with async_playwright() as p:
@@ -157,12 +160,79 @@ async def scan_form_fields(url: str) -> dict:
                 "url":     url,
                 "fields":  [],
             }
-            
+
+
+async def human_delay(min_ms=80, max_ms=200):
+    """Random delay to simulate human reaction time"""
+    await asyncio.sleep(random.uniform(min_ms, max_ms) / 1000)
+
+async def move_mouse_naturally(page, target_x, target_y):
+    """Move mouse in a curved path instead of teleporting"""
+    current   = await page.evaluate("() => ({ x: window.innerWidth/2, y: window.innerHeight/2 })")
+    steps     = random.randint(8, 15)
+    start_x   = current["x"]
+    start_y   = current["y"]
+
+    for i in range(steps):
+        progress = (i + 1) / steps
+        # Add slight curve/wobble to the path
+        wobble_x = random.uniform(-5, 5)
+        wobble_y = random.uniform(-5, 5)
+        mid_x    = start_x + (target_x - start_x) * progress + wobble_x
+        mid_y    = start_y + (target_y - start_y) * progress + wobble_y
+        await page.mouse.move(mid_x, mid_y)
+        await asyncio.sleep(random.uniform(0.01, 0.03))
+
+async def human_type(page, selector, text):
+    """Type text with human-like variable speed and occasional pauses"""
+    element = page.locator(selector).first
+    await element.click()
+    await human_delay(100, 300)
+
+    # Clear existing value like a human (select all + delete)
+    await page.keyboard.press("Control+a")
+    await human_delay(50, 100)
+    await page.keyboard.press("Backspace")
+    await human_delay(80, 150)
+
+    for char in text:
+        await page.keyboard.type(char)
+
+        # Variable typing speed — humans don't type at constant speed
+        if char in (" ", ",", ".", "@"):
+            # Slight pause after punctuation/spaces
+            await asyncio.sleep(random.uniform(0.1, 0.25))
+        elif random.random() < 0.08:
+            # Occasional longer pause (thinking, distraction)
+            await asyncio.sleep(random.uniform(0.2, 0.5))
+        else:
+            await asyncio.sleep(random.uniform(0.04, 0.12))
+
+    # Blur the field after typing (humans tab away or click elsewhere)
+    await element.blur()
+    await human_delay(100, 250)
+
+async def random_scroll(page):
+    """Scroll around naturally like a human reading the page"""
+    scroll_amount = random.randint(100, 300)
+    await page.evaluate(f"window.scrollBy(0, {scroll_amount})")
+    await human_delay(300, 600)
+    await page.evaluate(f"window.scrollBy(0, -{scroll_amount // 2})")
+    await human_delay(200, 400)
+
 async def fill_form_fields(url: str, mapped_fields: list) -> dict:
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,   # MUST be visible so user can review and submit
-            slow_mo=500,      # slowed down so user can see each field being filled
+            headless=False,
+            slow_mo=0,    # We handle delays manually now — more realistic than slow_mo
+            args=[
+                # Remove automation fingerprint flags
+                "--disable-blink-features=AutomationControlled",
+                "--disable-infobars",
+                "--start-maximized",
+                "--no-sandbox",
+                "--disable-web-security",
+            ],
         )
 
         context = await browser.new_context(
@@ -172,56 +242,84 @@ async def fill_form_fields(url: str, mapped_fields: list) -> dict:
                 "Chrome/120.0.0.0 Safari/537.36"
             ),
             viewport={"width": 1280, "height": 800},
+            # Fake real browser permissions
+            permissions=["geolocation"],
+            locale="en-US",
+            timezone_id="Asia/Karachi",
         )
+
+        # Remove webdriver flag — key fix for reCAPTCHA detection
+        await context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins',   { get: () => [1, 2, 3] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+            window.chrome = { runtime: {} };
+        """)
 
         page = await context.new_page()
 
         try:
+            # 1. Navigate to page
             await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-            await page.wait_for_timeout(2000)  # let JS render fully
+
+            # 2. Simulate human landing on the page
+            # — move mouse around randomly, scroll a bit, wait like reading
+            await human_delay(1500, 2500)
+            await page.mouse.move(
+                random.randint(300, 800),
+                random.randint(200, 400)
+            )
+            await human_delay(500, 1000)
+            await random_scroll(page)
+            await human_delay(800, 1500)
 
             filled  = []
             skipped = []
 
             for field in mapped_fields:
-                name            = field.get("name", "")
-                value           = field.get("suggested_value", "")
-                confidence      = field.get("confidence", "low")
-                label           = field.get("label", "")
-                field_type      = field.get("type", "text")
+                name       = field.get("name", "")
+                value      = field.get("suggested_value", "")
+                confidence = field.get("confidence", "low")
+                label      = field.get("label", "")
+                field_type = field.get("type", "text")
 
-                # Skip fields with no value or marked as skip
                 if not value or confidence == "skip":
-                    skipped.append({"name": name, "label": label, "reason": "No value or marked skip"})
+                    skipped.append({"name": name, "label": label, "reason": "No value or skip"})
                     continue
 
-                # Build selector — try name first, then id
                 selector = f'[name="{name}"]'
 
                 try:
-                    # Wait for field to exist on page
-                    await page.wait_for_selector(selector, timeout=3000)
-                    element = page.locator(selector).first
+                    await page.wait_for_selector(selector, timeout=4000)
 
+                    # Get element position for natural mouse movement
+                    box = await page.locator(selector).first.bounding_box()
+                    if box:
+                        # Move mouse to field naturally before clicking
+                        target_x = box["x"] + box["width"]  / 2 + random.uniform(-5, 5)
+                        target_y = box["y"] + box["height"] / 2 + random.uniform(-3, 3)
+                        await move_mouse_naturally(page, target_x, target_y)
+                        await human_delay(100, 200)
+
+                    # Fill based on field type
                     if field_type == "textarea":
-                        await element.click()
-                        await element.fill(value)
+                        await human_type(page, selector, value)
 
                     elif field_type == "select":
-                        await element.select_option(label=value)
+                        await page.locator(selector).first.select_option(label=value)
+                        await human_delay(200, 400)
 
-                    elif field_type in ("text", "email", "tel", "number", "url"):
-                        await element.click()
-                        await element.fill("")        # clear existing value first
-                        await element.type(value, delay=50)  # type like a human
+                    else:
+                        await human_type(page, selector, value)
 
-                    # Highlight filled field so user can see it clearly
+                    # Highlight filled field green so user can see it
                     await page.evaluate(
                         """(sel) => {
-                            const el = document.querySelector(`[name="${sel}"]`);
+                            const el = document.querySelector('[name="' + sel + '"]');
                             if (el) {
                                 el.style.backgroundColor = '#d4edda';
-                                el.style.border = '2px solid #28a745';
+                                el.style.border          = '2px solid #28a745';
+                                el.style.borderRadius    = '4px';
                             }
                         }""",
                         name
@@ -234,24 +332,38 @@ async def fill_form_fields(url: str, mapped_fields: list) -> dict:
                         "confidence": confidence,
                     })
 
+                    # Random pause between fields — humans don't fill forms at robotic speed
+                    await human_delay(400, 900)
+
+                    # Occasionally move mouse away between fields (humans look around)
+                    if random.random() < 0.4:
+                        await page.mouse.move(
+                            random.randint(100, 600),
+                            random.randint(100, 500)
+                        )
+                        await human_delay(200, 500)
+
                 except Exception as field_error:
                     skipped.append({
                         "name":   name,
                         "label":  label,
-                        "reason": f"Field not found on page: {str(field_error)[:80]}",
+                        "reason": str(field_error)[:80],
                     })
 
-            # Scroll to top so user sees the filled form
-            await page.evaluate("window.scrollTo(0, 0)")
+            # 3. After filling — scroll back to top so user sees full form
+            await page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })")
+            await human_delay(500, 800)
 
-            # Keep browser open — user must manually submit
-            # We pause here and wait for the browser to be closed by the user
-            print(f"\n✅ Form filled. Browser is open for review.")
-            print(f"   Filled:  {len(filled)} fields")
+            print(f"\n✅ Form filled successfully!")
+            print(f"   Filled:  {len(filled)} fields (highlighted green)")
             print(f"   Skipped: {len(skipped)} fields")
-            print(f"   Please review and submit manually.\n")
+            print(f"\n⚠️  Please:")
+            print(f"   1. Fill salary fields manually")
+            print(f"   2. Solve the reCAPTCHA")
+            print(f"   3. Click Submit when ready")
+            print(f"   4. Close the browser when done\n")
 
-            # Wait until user closes the browser (up to 10 minutes)
+            # 4. Keep browser open — wait for user to submit and close
             await page.wait_for_event("close", timeout=600000)
 
             return {
@@ -260,20 +372,19 @@ async def fill_form_fields(url: str, mapped_fields: list) -> dict:
                 "skipped_count": len(skipped),
                 "filled":        filled,
                 "skipped":       skipped,
+                "message":       "Form filled. User completed manual review.",
             }
 
         except Exception as e:
-            # Don't close browser on error either — let user see what happened
             error_msg = str(e)
             if "Timeout" in error_msg and "close" in error_msg:
-                # User closed the browser — this is normal
                 return {
-                    "success":      True,
-                    "filled_count": len(filled) if 'filled' in locals() else 0,
-                    "skipped_count":len(skipped) if 'skipped' in locals() else 0,
-                    "filled":       filled  if 'filled'  in locals() else [],
-                    "skipped":      skipped if 'skipped' in locals() else [],
-                    "note":         "Browser closed by user",
+                    "success":       True,
+                    "filled_count":  len(filled)  if "filled"  in locals() else 0,
+                    "skipped_count": len(skipped) if "skipped" in locals() else 0,
+                    "filled":        filled        if "filled"  in locals() else [],
+                    "skipped":       skipped       if "skipped" in locals() else [],
+                    "note":          "Browser closed by user",
                 }
             await browser.close()
             return {

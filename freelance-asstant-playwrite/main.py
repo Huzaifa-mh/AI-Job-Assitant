@@ -1,23 +1,26 @@
-# import sys
-# import asyncio
-# if sys.platform == "win32":
-#     asyncio.set_event_loop_policy(
-#         asyncio.WindowsProactorEventLoopPolicy()
-#     )
+import asyncio
+import sys
+
+# Fix for Windows + Python 3.13 — must be set BEFORE any asyncio usage
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from scanner import scan_form_fields
+from scanner import scan_form_fields, fill_form_fields
 from blocker import is_blocked, should_skip_field
-import asyncio
 
 app = FastAPI()
 
 class ScanRequest(BaseModel):
     url: str
 
+class FillRequest(BaseModel):
+    url:           str
+    mapped_fields: list
+
 @app.post("/scan-form")
 async def scan_form(data: ScanRequest):
-    # 1. Check if URL is blocked
     blocked, domain = is_blocked(data.url)
     if blocked:
         return {
@@ -31,7 +34,6 @@ async def scan_form(data: ScanRequest):
     if not data.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL")
 
-    # 2. Scan the page
     result = await scan_form_fields(data.url)
 
     if not result["success"]:
@@ -42,7 +44,6 @@ async def scan_form(data: ScanRequest):
             "fields":  [],
         }
 
-    # 3. Filter out skippable fields (reCAPTCHA, file uploads, hidden tokens)
     all_fields      = result.get("fields", [])
     fillable_fields = [f for f in all_fields if not should_skip_field(f)]
     skipped_fields  = [f for f in all_fields if should_skip_field(f)]
@@ -65,33 +66,8 @@ async def scan_form(data: ScanRequest):
         "fields":         fillable_fields,
     }
 
-# debugging
-@app.get("/loop")
-async def loop_info():
-    loop = asyncio.get_running_loop()
-
-    return {
-        "loop_type": str(type(loop)),
-    }
-
-@app.on_event("startup")
-async def startup():
-    loop = asyncio.get_running_loop()
-    print("LOOP TYPE:", type(loop))
-
-@app.get("/health")
-async def health():
-    return {"status": "Playwright service running on port 8001"}
-
-from scanner import scan_form_fields, fill_form_fields  # update this import line
-
-class FillRequest(BaseModel):
-    url:           str
-    mapped_fields: list
-
 @app.post("/fill-form")
 async def fill_form(data: FillRequest):
-    # 1. Block unsupported sites
     blocked, domain = is_blocked(data.url)
     if blocked:
         return {
@@ -103,7 +79,6 @@ async def fill_form(data: FillRequest):
     if not data.url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid URL")
 
-    # 2. Filter out skip/low confidence + empty values before sending to filler
     fillable = [
         f for f in data.mapped_fields
         if f.get("suggested_value") and f.get("confidence") != "skip"
@@ -115,6 +90,9 @@ async def fill_form(data: FillRequest):
             "message": "No fillable fields with values to fill",
         }
 
-    # 3. Fill the form — browser will stay open for user
     result = await fill_form_fields(data.url, fillable)
     return result
+
+@app.get("/health")
+async def health():
+    return {"status": "Playwright service running on port 8001"}
