@@ -11,6 +11,7 @@ import Badge        from '../components/ui/Badge';
 import Spinner      from '../components/ui/Spinner';
 import EmptyState   from '../components/ui/EmptyState';
 import ProgressBar  from '../components/ui/ProgressBar';
+import { TOKENS as T } from '../utils/designTokens';
 import {
   FileText, Briefcase, TrendingUp, Zap,
   MessageSquare, BarChart3, ArrowRight,
@@ -123,41 +124,41 @@ export default function Dashboard() {
         </div>
 
         {/* ── Stats row ── */}
-        <div
-          className="anim-fadeInUp delay-1"
-          style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14 }}
-        >
-          <StatCard
-            label="Resumes"
-            value={resumes.length}
-            sub="uploaded"
-            icon={<FileText size={17} />}
-            trend={resumes.length > 0 ? 'Active' : undefined}
-            trendUp
-          />
-          <StatCard
-            label="Job Matches"
-            value={topMatches.length}
-            sub="found so far"
-            icon={<Briefcase size={17} />}
-            trend={topMatches.length > 0 ? `${topMatches.length} jobs` : undefined}
-            trendUp
-          />
-          <StatCard
-            label="Top Match"
-            value={topMatches[0] ? `${topMatches[0].match_score}%` : '—'}
-            sub="best compatibility"
-            icon={<TrendingUp size={17} />}
-            color={topMatches[0] ? scoreColor(topMatches[0].match_score) : 'var(--primary)'}
-          />
-          <StatCard
-            label="Avg Score"
-            value={avgScore ? `${avgScore}%` : '—'}
-            sub="across all matches"
-            icon={<BarChart3 size={17} />}
-            color={avgScore ? scoreColor(avgScore) : 'var(--primary)'}
-          />
-        </div>
+          <div
+  className="anim-fadeInUp delay-1"
+  style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14 }}
+>
+  <StatCard
+    label="Resumes"
+    value={resumes.length}
+    sub="uploaded"
+    icon={<FileText size={T.icon.card} />}
+    trend={resumes.length > 0 ? 'Active' : undefined}
+    trendUp
+  />
+  <StatCard
+    label="Job Matches"
+    value={topMatches.length}
+    sub="found so far"
+    icon={<Briefcase size={T.icon.card} />}
+    trend={topMatches.length > 0 ? `${topMatches.length} jobs` : undefined}
+    trendUp
+  />
+  <StatCard
+    label="Top Match"
+    value={topMatches[0] ? `${topMatches[0].match_score}%` : '—'}
+    sub="best compatibility"
+    icon={<TrendingUp size={T.icon.card} />}
+    color={topMatches[0] ? scoreColor(topMatches[0].match_score) : T.color.primary}
+  />
+  <StatCard
+    label="Avg Score"
+    value={avgScore ? `${avgScore}%` : '—'}
+    sub="across all matches"
+    icon={<BarChart3 size={T.icon.card} />}
+    color={avgScore ? scoreColor(avgScore) : T.color.primary}
+  />
+</div>
 
         {/* ── Main grid ── */}
         <div

@@ -1,20 +1,21 @@
+import { TOKENS as T } from '../../utils/designTokens';
+
 export default function ProgressBar({
   value        = 0,
-  color        = 'var(--primary)',
+  color        = T.color.primary,
   label,
   showValue    = true,
   height       = 6,
   animated     = true,
   style        = {},
 }) {
-  const clampedValue = Math.min(Math.max(value, 0), 100);
+  const clamped = Math.min(Math.max(value, 0), 100);
 
-  const barColor =
-    color === 'auto'
-      ? clampedValue >= 70 ? '#10B981'
-      : clampedValue >= 50 ? '#F59E0B'
-      : '#EF4444'
-      : color;
+  const barColor = color === 'auto'
+    ? clamped >= 70 ? T.color.success
+    : clamped >= 50 ? T.color.warning
+    : T.color.danger
+    : color;
 
   return (
     <div style={{ width:'100%', ...style }}>
@@ -23,18 +24,27 @@ export default function ProgressBar({
           display:        'flex',
           justifyContent: 'space-between',
           alignItems:     'center',
-          marginBottom:   6,
+          marginBottom:   7,
         }}>
           {label && (
-            <span style={{ fontSize:12, color:'var(--text-secondary)' }}>{label}</span>
+            <span style={{
+              fontSize:     T.font.progressLabelSize,   // 13
+              fontWeight:   500,
+              color:        T.color.textSecondary,
+              letterSpacing:T.font.spacingNormal,
+              lineHeight:   1.4,
+            }}>
+              {label}
+            </span>
           )}
           {showValue && (
             <span style={{
-              fontSize:   12,
-              fontWeight: 600,
-              color:      barColor,
+              fontSize:     13,
+              fontWeight:   700,
+              color:        barColor,
+              letterSpacing:T.font.spacingTight,
             }}>
-              {clampedValue}%
+              {clamped}%
             </span>
           )}
         </div>
@@ -50,21 +60,21 @@ export default function ProgressBar({
         {/* Fill */}
         <div style={{
           height:     '100%',
-          width:      `${clampedValue}%`,
+          width:      `${clamped}%`,
           background: barColor,
           borderRadius: height,
           transition: animated ? 'width 0.8s cubic-bezier(0.4,0,0.2,1)' : 'none',
           position:   'relative',
           overflow:   'hidden',
         }}>
-          {/* Shimmer effect on fill */}
           {animated && (
             <div style={{
               position:   'absolute',
-              top: 0, left: '-100%',
+              top:        0,
+              left:       '-100%',
               width:      '100%',
               height:     '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)',
               animation:  'shimmer 2s infinite',
             }} />
           )}
