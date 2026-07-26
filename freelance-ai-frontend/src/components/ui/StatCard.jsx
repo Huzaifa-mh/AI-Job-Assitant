@@ -1,4 +1,5 @@
 import Card from './Card';
+import { TOKENS as T } from '../../utils/designTokens';
 
 export default function StatCard({
   label,
@@ -7,69 +8,91 @@ export default function StatCard({
   icon,
   trend,
   trendUp,
-  color   = 'var(--primary)',
-  style   = {},
+  color = T.color.primary,
+  style = {},
 }) {
   return (
-    <Card hover style={{ padding: 20, ...style }}>
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+    <Card hover style={{ padding: T.space.cardPadding, ...style }}>
+      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12 }}>
 
-        {/* Left: text */}
+        {/* ── Left: text ── */}
         <div style={{ flex:1, minWidth:0 }}>
+
+          {/* Eyebrow label */}
           <p style={{
-            fontSize:      11,
-            fontWeight:    600,
-            color:         'var(--text-muted)',
+            fontSize:      T.font.statLabelSize,
+            fontWeight:    T.font.statLabelWeight,
+            color:         T.color.textLabel,         // #AEB1B9
             textTransform: 'uppercase',
-            letterSpacing: '0.07em',
-            marginBottom:  8,
+            letterSpacing: T.font.spacingWide,        // 0.07em
+            marginBottom:  10,
+            lineHeight:    1.4,
           }}>
             {label}
           </p>
 
+          {/* Main value */}
           <p style={{
-            fontSize:   28,
-            fontWeight: 800,
-            color:      'var(--text-primary)',
-            lineHeight: 1,
+            fontSize:     T.font.statValueSize,       // 28
+            fontWeight:   T.font.statValueWeight,     // 800
+            color:        T.color.cardValue,          // #F9FAFB
+            lineHeight:   1,
+            letterSpacing:T.font.spacingTight,
             marginBottom: sub ? 6 : 0,
           }}>
             {value}
           </p>
 
+          {/* Sub text */}
           {sub && (
-            <p style={{ fontSize:11, color:'var(--text-secondary)', marginTop:4 }}>{sub}</p>
+            <p style={{
+              fontSize:     T.font.statLabelSize,
+              color:        T.color.cardValueSub,     // #9FA3AC
+              marginTop:    5,
+              letterSpacing:T.font.spacingNormal,
+              lineHeight:   1.4,
+            }}>
+              {sub}
+            </p>
           )}
 
+          {/* Trend */}
           {trend && (
-            <div style={{ display:'flex', alignItems:'center', gap:4, marginTop:6 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:7 }}>
               <span style={{
-                fontSize:   11,
-                fontWeight: 600,
-                color:      trendUp ? '#10B981' : '#EF4444',
+                fontSize:     11,
+                fontWeight:   600,
+                color:        trendUp ? T.color.success : T.color.danger,
+                letterSpacing:T.font.spacingNormal,
               }}>
                 {trendUp ? '↑' : '↓'} {trend}
               </span>
-              <span style={{ fontSize:11, color:'var(--text-muted)' }}>vs last month</span>
+              <span style={{
+                fontSize:     11,
+                color:        T.color.textLabel,
+                letterSpacing:T.font.spacingTight,
+              }}>
+                vs last month
+              </span>
             </div>
           )}
         </div>
 
-        {/* Right: icon */}
+        {/* ── Right: icon box — 25×25 ── */}
         {icon && (
           <div style={{
-            width:          40,
-            height:         40,
-            borderRadius:   10,
-            background:     `color-mix(in srgb, ${color} 12%, transparent)`,
-            border:         `1px solid color-mix(in srgb, ${color} 20%, transparent)`,
+            width:          T.icon.cardBox,           // 25
+            height:         T.icon.cardBox,           // 25
+            borderRadius:   T.radius.small,
+            background:     `${color}18`,
+            border:         `1px solid ${color}25`,
             display:        'flex',
             alignItems:     'center',
             justifyContent: 'center',
             color,
             flexShrink:     0,
-            marginLeft:     12,
           }}>
+            {/* Clone icon with correct size */}
             {icon}
           </div>
         )}
