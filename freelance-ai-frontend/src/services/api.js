@@ -65,3 +65,10 @@ export const applyAPI = {
   mapFields: (data) => API.post('/apply/map-fields', data),
   fill:      (data) => API.post('/apply/fill',       data, { timeout: 660000 }),
 };
+
+// ── Proposals ─────────────────────────────────────────
+export const proposalAPI = {
+  generate:        (data) => API.post('/proposals/generate', data, { timeout: 60000 }),
+  save:            (data) => API.post('/proposals',          data),
+  getMyProposals:  ()     => API.get('/proposals'),
+};

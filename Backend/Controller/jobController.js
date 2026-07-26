@@ -34,15 +34,18 @@ const fetchAndStoreJobs = async (req, res, next) => {
       }
 
       await pool.request()
-        .input('title',       sql.VarChar,      job.title)
-        .input('company',     sql.VarChar,      job.company)
-        .input('location',    sql.VarChar,      job.location)
-        .input('description', sql.NVarChar,     job.description)
-        .input('job_url',     sql.VarChar,      job.job_url)
-        .input('source',      sql.VarChar,      job.source)
+        .input('title',            sql.VarChar,      job.title)
+        .input('company',          sql.VarChar,      job.company)
+        .input('location',         sql.VarChar,      job.location)
+        .input('description',      sql.NVarChar,     job.description)
+        .input('job_url',          sql.VarChar,      job.job_url)
+        .input('source',           sql.VarChar,      job.source)
+        .input('company_logo',     sql.NVarChar,     job.company_logo)
+        .input('employment_type',  sql.VarChar,      job.employment_type)
+        .input('salary',           sql.NVarChar,     job.salary)
         .query(`
-          INSERT INTO Jobs (title, company, location, description, job_url, source)
-          VALUES (@title, @company, @location, @description, @job_url, @source)
+          INSERT INTO Jobs (title, company, location, description, job_url, source, company_logo, employment_type, salary)
+          VALUES (@title, @company, @location, @description, @job_url, @source, @company_logo, @employment_type, @salary)
         `);
 
       inserted++;

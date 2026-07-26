@@ -9,6 +9,7 @@ import Dashboard   from './pages/Dashboard';
 import Resume      from './pages/Resume';
 import Jobs        from './pages/Jobs';
 import Skills      from './pages/Skills';
+import Proposals   from './pages/Proposals';
 
 // ── Placeholder for pages not built yet ──
 import AppLayout from './components/layout/AppLayout';
@@ -70,7 +71,7 @@ function AppRoutes() {
       {/* Protected — placeholders (swap as batches arrive) */}
      <Route path="/jobs"        element={<Protected><Jobs        /></Protected>} />
       <Route path="/skills"      element={<Protected><Skills      /></Protected>} />
-      <Route path="/proposals"   element={<Protected><ComingSoon title="Proposal Generator"  /></Protected>} />
+      <Route path="/proposals"   element={<Protected><Proposals /></Protected>} />
       <Route path="/negotiation" element={<Protected><ComingSoon title="Negotiation Simulator"/></Protected>} />
       <Route path="/analytics"   element={<Protected><Analytics title="Career Analytics"    /></Protected>} />
       <Route path="/profile"     element={<Protected><Profile title="Profile"             /></Protected>} />

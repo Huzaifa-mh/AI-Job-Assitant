@@ -91,14 +91,19 @@ const getTopMatches = async (req, res, next) => {
     const result = await pool.request()
       .input('user_id', sql.Int, req.user.user_id)
       .query(`
-        SELECT TOP 5
+        SELECT TOP 7
           jm.match_score,
           jm.missing_skills,
+          jm.matched_skills,
           j.job_id,
           j.title,
           j.company,
           j.location,
           j.job_url,
+          j.company_logo,
+          j.employment_type,
+          j.salary,
+          j.description,
           LEFT(j.description, 200) AS description_preview
         FROM Job_Matches jm
         JOIN Jobs j ON jm.job_id = j.job_id
