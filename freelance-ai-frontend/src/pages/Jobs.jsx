@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { jobsAPI, matchAPI, resumeAPI, applyAPI } from '../services/api';
-import { scoreColor, parseMissingSkills, truncate } from '../utils/helpers';
+import {
+  scoreColor, parseMissingSkills, truncate,
+  matchTier, buildMatchReason, getEmploymentTags,
+  parseSalaryValue, salaryTier,
+} from '../utils/helpers';
 import AppLayout     from '../components/layout/AppLayout';
 import { useAppToast } from '../components/layout/AppLayout';
 import Card          from '../components/ui/Card';
@@ -49,6 +53,15 @@ export default function Jobs() {
   // Forms
   const [fetchForm,   setFetchForm]  = useState(DEFAULT_FETCH);
   const [scanResult,  setScanResult] = useState(null);
+
+  // Filters & sorting
+  const [recFilter,        setRecFilter]        = useState('all');
+  const [sortBy,           setSortBy]           = useState('highest_match');
+  const [empType,          setEmpType]          = useState('all');
+  const [sourceFilter,     setSourceFilter]     = useState('all');
+  const [missingFilter,    setMissingFilter]    = useState('all');
+  const [salaryFilter,     setSalaryFilter]     = useState('any');
+  const [recommendedOnly,  setRecommendedOnly]  = useState(false);
 
   /* ── Load jobs ── */
   const loadJobs = async (p = 1, s = search) => {
@@ -111,6 +124,7 @@ export default function Jobs() {
         [job_id]: {
           match_score:    data.match_score,
           missing_skills: data.missing_skills,
+          matched_skills: data.matched_skills,
         },
       }));
       toast?.success(`Match score: ${data.match_score}%`);
@@ -139,6 +153,72 @@ export default function Jobs() {
 
   /* ── Pagination ── */
   const goPage = (p) => { setPage(p); loadJobs(p); };
+
+  /* ── Filtering & sorting (client-side, over the currently loaded page) ── */
+  const displayedJobs = useMemo(() => {
+    let rows = jobs.map(job => ({ job, m: matches[job.job_id] }));
+
+    rows = rows.filter(({ job, m }) => {
+      const score = m?.match_score;
+
+      if (recommendedOnly && !(score >= 75)) return false;
+
+      if (recFilter !== 'all') {
+        const tier = matchTier(score);
+        if (!tier || tier.key !== recFilter) return false;
+      }
+
+      if (empType !== 'all' && !getEmploymentTags(job).includes(empType)) return false;
+
+      if (sourceFilter !== 'all' && (job.source || '').toLowerCase() !== sourceFilter.toLowerCase()) return false;
+
+      if (missingFilter !== 'all') {
+        if (!m) return false;
+        const count  = parseMissingSkills(m.missing_skills).length;
+        const bucket = count === 0 ? '0' : count <= 3 ? '1-3' : '3+';
+        if (bucket !== missingFilter) return false;
+      }
+
+      if (salaryFilter !== 'any') {
+        const value = parseSalaryValue(job.salary);
+        if (value == null || salaryTier(value) !== salaryFilter) return false;
+      }
+
+      return true;
+    });
+
+    const salaryOf = ({ job }) => parseSalaryValue(job.salary) ?? -Infinity;
+    const scoreOf  = ({ m })   => m?.match_score ?? -Infinity;
+
+    switch (sortBy) {
+      case 'lowest_match':
+        rows.sort((a, b) => (a.m?.match_score ?? Infinity) - (b.m?.match_score ?? Infinity));
+        break;
+      case 'newest':
+        rows.sort((a, b) => new Date(b.job.fetched_at) - new Date(a.job.fetched_at));
+        break;
+      case 'highest_salary':
+        rows.sort((a, b) => salaryOf(b) - salaryOf(a));
+        break;
+      case 'lowest_salary':
+        rows.sort((a, b) => salaryOf(a) - salaryOf(b));
+        break;
+      default: // highest_match
+        rows.sort((a, b) => scoreOf(b) - scoreOf(a));
+    }
+
+    return rows.map(({ job }) => job);
+  }, [jobs, matches, recFilter, sortBy, empType, sourceFilter, missingFilter, salaryFilter, recommendedOnly]);
+
+  const filterSelectStyle = {
+    background:   'var(--bg-elevated)',
+    border:       '1px solid var(--border-light)',
+    borderRadius: 10,
+    padding:      '8px 10px',
+    color:        'var(--text-primary)',
+    fontSize:     12,
+    outline:      'none',
+  };
 
   return (
     <AppLayout>
@@ -274,6 +354,64 @@ export default function Jobs() {
               </Button>
             </form>
 
+            {/* Filter toolbar */}
+            <Card padding={14}>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:10, alignItems:'center' }}>
+                <select value={recFilter} onChange={e => setRecFilter(e.target.value)} style={filterSelectStyle}>
+                  <option value="all">AI Recommendation: All</option>
+                  <option value="highly">⭐ Highly Recommended (90%+)</option>
+                  <option value="good">🟢 Good Match (75–89%)</option>
+                  <option value="moderate">🟡 Moderate Match (60–74%)</option>
+                  <option value="needs">🔴 Needs Improvement (&lt;60%)</option>
+                </select>
+
+                <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={filterSelectStyle}>
+                  <option value="highest_match">Sort: Highest Match</option>
+                  <option value="lowest_match">Sort: Lowest Match</option>
+                  <option value="newest">Sort: Newest Jobs</option>
+                  <option value="highest_salary">Sort: Highest Salary</option>
+                  <option value="lowest_salary">Sort: Lowest Salary</option>
+                </select>
+
+                <select value={empType} onChange={e => setEmpType(e.target.value)} style={filterSelectStyle}>
+                  <option value="all">Employment Type: All</option>
+                  {['Full Time','Part Time','Contract','Internship','Freelance','Remote','Hybrid','On-site'].map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+
+                <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)} style={filterSelectStyle}>
+                  <option value="all">Source: All</option>
+                  {['LinkedIn','Indeed','Glassdoor','Dice','RapidAPI'].map(v => (
+                    <option key={v} value={v}>{v}</option>
+                  ))}
+                </select>
+
+                <select value={missingFilter} onChange={e => setMissingFilter(e.target.value)} style={filterSelectStyle}>
+                  <option value="all">Missing Skills: All</option>
+                  <option value="0">0 Missing Skills</option>
+                  <option value="1-3">1–3 Missing Skills</option>
+                  <option value="3+">More than 3</option>
+                </select>
+
+                <select value={salaryFilter} onChange={e => setSalaryFilter(e.target.value)} style={filterSelectStyle}>
+                  <option value="any">Salary: Any</option>
+                  <option value="high">High Salary</option>
+                  <option value="medium">Medium Salary</option>
+                  <option value="entry">Entry Level</option>
+                </select>
+
+                <Button
+                  variant={recommendedOnly ? 'primary' : 'ghost'}
+                  size="sm"
+                  icon={<Sparkles size={12} />}
+                  onClick={() => setRecommendedOnly(v => !v)}
+                >
+                  AI Recommended Only
+                </Button>
+              </div>
+            </Card>
+
             {/* Jobs */}
             {loading ? (
               <div style={{ display:'flex', justifyContent:'center', padding:48 }}>
@@ -292,10 +430,35 @@ export default function Jobs() {
                   }
                 />
               </Card>
+            ) : displayedJobs.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon="🔍"
+                  title="No jobs match your filters"
+                  desc="Try loosening the AI Recommendation, Employment Type, or Salary filters."
+                  action={
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setRecFilter('all'); setSortBy('highest_match'); setEmpType('all');
+                        setSourceFilter('all'); setMissingFilter('all'); setSalaryFilter('any');
+                        setRecommendedOnly(false);
+                      }}
+                    >
+                      Clear Filters
+                    </Button>
+                  }
+                />
+              </Card>
             ) : (
               <>
-                {jobs.map((job, i) => {
+                {displayedJobs.map((job, i) => {
                   const m         = matches[job.job_id];
+                  const tier      = m ? matchTier(m.match_score) : null;
+                  const reason    = m
+                    ? buildMatchReason(parseMissingSkills(m.matched_skills), parseMissingSkills(m.missing_skills), m.match_score)
+                    : null;
                   const isSelected = selected?.job_id === job.job_id;
 
                   return (
@@ -333,17 +496,18 @@ export default function Jobs() {
                             <p style={{ fontSize:14, fontWeight:600, color:'var(--text-primary)' }}>
                               {job.title}
                             </p>
-                            {m && (
-                              <Badge
-                                color={
-                                  m.match_score >= 70 ? 'success' :
-                                  m.match_score >= 50 ? 'warning' : 'danger'
-                                }
-                              >
-                                {m.match_score}% match
+                            {tier && (
+                              <Badge color={tier.color}>
+                                {tier.stars} {tier.label} · {m.match_score}%
                               </Badge>
                             )}
                           </div>
+
+                          {reason && (
+                            <p style={{ fontSize:11, color:'var(--text-muted)', fontStyle:'italic', marginBottom:5 }}>
+                              {reason}
+                            </p>
+                          )}
 
                           <div style={{ display:'flex', flexWrap:'wrap', gap:12 }}>
                             <span style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'var(--text-secondary)' }}>

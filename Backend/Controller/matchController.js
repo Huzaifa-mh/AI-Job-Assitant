@@ -62,6 +62,7 @@ const getMatchResults = async (req, res, next) => {
           jm.match_id,
           jm.match_score,
           jm.missing_skills,
+          jm.matched_skills,
           jm.matched_at,
           j.job_id,
           j.title,

@@ -84,7 +84,8 @@ const getAllJobs = async (req, res, next) => {
         SELECT
           job_id, title, company, location,
           LEFT(description, 300) AS description_preview,
-          job_url, source, fetched_at
+          job_url, source, fetched_at,
+          employment_type, salary
         FROM Jobs
         WHERE
           (title       LIKE @search   OR
