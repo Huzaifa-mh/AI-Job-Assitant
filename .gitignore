@@ -1,4 +1,5 @@
 
 .vscode/settings.json
 .env
-freelance-assitant-ai/__pycache__/main.cpython-313.pyc
+__pycache__/
+*.pyc
