@@ -9,6 +9,47 @@ import {
 } from 'lucide-react';
 import Button from '../components/ui/Button';
 
+
+/* ── Nexus inline SVG logo ── */
+function NexusLogo({ size = 36 }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width={size} height={size} style={{ flexShrink:0 }}>
+      <defs>
+        <linearGradient id="lp-leftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#1B2D5B"/>
+          <stop offset="100%" stopColor="#1E5FA8"/>
+        </linearGradient>
+        <linearGradient id="lp-rightGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%"   stopColor="#00AADD"/>
+          <stop offset="100%" stopColor="#00D4FF"/>
+        </linearGradient>
+        <linearGradient id="lp-bridgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#1E5FA8"/>
+          <stop offset="50%"  stopColor="#0088CC"/>
+          <stop offset="100%" stopColor="#00BBEE"/>
+        </linearGradient>
+        <filter id="lp-shadow">
+          <feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="#00AADD" floodOpacity="0.3"/>
+        </filter>
+        <filter id="lp-glow">
+          <feGaussianBlur stdDeviation="2" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <ellipse cx="60" cy="108" rx="28" ry="5" fill="#00AADD" opacity="0.12"/>
+      <path d="M 24 94 L 24 26 Q 24 20 30 20 L 42 20 Q 48 20 48 26 L 48 62 L 38 74 L 38 94 Z" fill="url(#lp-leftGrad)" filter="url(#lp-shadow)"/>
+      <path d="M 28 26 L 28 70 L 38 58 L 38 26 Q 38 24 35 24 L 31 24 Q 28 24 28 26 Z" fill="white" opacity="0.1"/>
+      <path d="M 24 94 L 38 94 L 38 88 L 24 88 Z" fill="#0A1628" opacity="0.35"/>
+      <path d="M 48 62 L 48 26 Q 48 20 54 18 L 66 18 Q 72 20 70 28 L 70 32 L 52 68 L 52 74 L 38 74 Z" fill="url(#lp-bridgeGrad)" filter="url(#lp-shadow)"/>
+      <path d="M 50 26 L 50 60 L 58 44 L 60 22 Z" fill="white" opacity="0.08"/>
+      <path d="M 70 32 L 70 56 L 80 44 L 94 26 Q 96 20 90 18 L 78 18 Q 72 18 70 24 Z" fill="url(#lp-rightGrad)" filter="url(#lp-glow)"/>
+      <path d="M 70 56 L 70 94 L 84 94 L 84 42 Z" fill="url(#lp-rightGrad)"/>
+      <path d="M 70 94 L 84 94 L 84 88 L 70 88 Z" fill="#006699" opacity="0.5"/>
+      <path d="M 88 18 L 96 23 L 82 40 L 76 34 Z" fill="#00D4FF" opacity="0.9"/>
+    </svg>
+  );
+}
+
 /* ══════════════════════════════════════════
    DATA
 ══════════════════════════════════════════ */
@@ -26,6 +67,21 @@ const FAQS = [
   { q:'How does the proposal generator work?',       a:'It reads your resume and the job description, then generates a fully tailored proposal using Gemini AI. It also identifies your fit points and gap acknowledgments.' },
   { q:'Is my resume data secure?',                   a:'Your data is encrypted at rest and in transit. We never share personal information with third parties.' },
   { q:'What platforms does job matching pull from?', a:'We use the JSearch API which aggregates jobs from LinkedIn, Indeed, Glassdoor, and hundreds of company career pages in real time.' },
+];
+
+const STEPS = [
+  { num:'01', title:'Upload Resume',    desc:'PDF or DOCX, parsed in seconds', icon:FileText,   color:'#6366F1' },
+  { num:'02', title:'Get Matched',      desc:'Live jobs ranked by fit score',  icon:Briefcase,  color:'#8B5CF6' },
+  { num:'03', title:'Close Skill Gaps', desc:'See what to learn next',         icon:TrendingUp, color:'#10B981' },
+  { num:'04', title:'Generate & Track', desc:'AI proposals, logged over time', icon:Zap,        color:'#F59E0B' },
+];
+
+const COMPARISON_ROWS = [
+  { label:'Time to find matching jobs', manual:'2–3 hrs / day',  ai:'Instant, auto-ranked' },
+  { label:'Proposal writing',           manual:'30–45 min each', ai:'Generated in seconds' },
+  { label:'Skill gap awareness',        manual:'Guesswork',      ai:'Data-driven, ranked by demand' },
+  { label:'Application tracking',       manual:'Spreadsheets',   ai:'Automatic analytics dashboard' },
+  { label:'Jobs reviewed per session',  manual:'10–15',          ai:'50+, pre-filtered by fit' },
 ];
 
 /* ══════════════════════════════════════════
@@ -377,7 +433,124 @@ function FaqItem({ q, a }) {
 }
 
 /* ══════════════════════════════════════════
-   FEATURE SHOWCASE SLIDER
+   HOW IT WORKS
+══════════════════════════════════════════ */
+
+function HowItWorks() {
+  return (
+    <section style={{ padding:'72px 48px', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ textAlign:'center', marginBottom:52 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:'#6366F1', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:12 }}>
+          How It Works
+        </p>
+        <h2 style={{ fontSize:32, fontWeight:700, color:'#F9FAFB', letterSpacing:'0.02em' }}>
+          From resume to offer in four steps
+        </h2>
+      </div>
+
+      <div style={{
+        maxWidth:1100, margin:'0 auto',
+        display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:0,
+        position:'relative',
+      }}>
+        <div style={{
+          position:'absolute', top:24, left:'12.5%', right:'12.5%',
+          height:1, background:'linear-gradient(90deg, rgba(99,102,241,0.4), rgba(245,158,11,0.4))',
+          zIndex:0,
+        }} />
+
+        {STEPS.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.num} style={{ position:'relative', zIndex:1, textAlign:'center', padding:'0 16px' }}>
+              <div style={{
+                width:48, height:48, borderRadius:'50%',
+                background:'#0B1020', border:`2px solid ${s.color}`,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                margin:'0 auto 20px',
+                boxShadow:`0 0 0 6px #0B1020, 0 4px 16px ${s.color}40`,
+              }}>
+                <Icon size={19} color={s.color} />
+              </div>
+              <p style={{ fontSize:11, fontWeight:700, color:s.color, letterSpacing:'0.1em', marginBottom:8 }}>
+                STEP {s.num}
+              </p>
+              <h4 style={{ fontSize:16, fontWeight:600, color:'#F9FAFB', marginBottom:6, letterSpacing:'0.01em' }}>
+                {s.title}
+              </h4>
+              <p style={{ fontSize:12, color:'#6B7280', lineHeight:1.6, letterSpacing:'0.02em' }}>
+                {s.desc}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════
+   COMPARISON TABLE
+══════════════════════════════════════════ */
+
+function ComparisonTable() {
+  return (
+    <section style={{ padding:'80px 48px' }}>
+      <div style={{ textAlign:'center', marginBottom:48 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:'#6366F1', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:12 }}>
+          Why It Matters
+        </p>
+        <h2 style={{ fontSize:32, fontWeight:700, color:'#F9FAFB', letterSpacing:'0.02em' }}>
+          Manual job hunting vs. FreelanceAI
+        </h2>
+      </div>
+
+      <div style={{
+        maxWidth:820, margin:'0 auto',
+        border:'1px solid rgba(255,255,255,0.08)', borderRadius:16,
+        overflow:'hidden',
+      }}>
+        <div style={{
+          display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr',
+          background:'rgba(255,255,255,0.03)',
+          borderBottom:'1px solid rgba(255,255,255,0.08)',
+        }}>
+          <div style={{ padding:'16px 20px' }} />
+          <div style={{ padding:'16px 20px', textAlign:'center' }}>
+            <span style={{ fontSize:13, fontWeight:600, color:'#6B7280', letterSpacing:'0.03em' }}>Manual</span>
+          </div>
+          <div style={{ padding:'16px 20px', textAlign:'center', background:'rgba(99,102,241,0.08)' }}>
+            <span style={{ fontSize:13, fontWeight:700, color:'#A5B4FC', letterSpacing:'0.03em' }}>FreelanceAI</span>
+          </div>
+        </div>
+
+        {COMPARISON_ROWS.map((row, i) => (
+          <div key={row.label} style={{
+            display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr',
+            borderBottom: i < COMPARISON_ROWS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+          }}>
+            <div style={{ padding:'16px 20px', display:'flex', alignItems:'center' }}>
+              <span style={{ fontSize:13, color:'#E5E7EB', letterSpacing:'0.02em' }}>{row.label}</span>
+            </div>
+            <div style={{ padding:'16px 20px', textAlign:'center', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <span style={{ fontSize:12, color:'#6B7280', letterSpacing:'0.02em' }}>{row.manual}</span>
+            </div>
+            <div style={{
+              padding:'16px 20px', textAlign:'center', background:'rgba(99,102,241,0.04)',
+              display:'flex', alignItems:'center', justifyContent:'center', gap:6,
+            }}>
+              <CheckCircle size={12} color="#10B981" style={{ flexShrink:0 }} />
+              <span style={{ fontSize:12, fontWeight:600, color:'#F9FAFB', letterSpacing:'0.02em' }}>{row.ai}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════
+   FEATURE OVERVIEW GRID + SHOWCASE SLIDER
 ══════════════════════════════════════════ */
 
 function FeatureOverviewGrid({ active, onSelect }) {
@@ -477,9 +650,8 @@ function FeatureShowcase() {
 
   return (
     <section style={{ padding:'80px 48px' }}>
-      {/* Section heading */}
       <div style={{ textAlign:'center', marginBottom:44 }}>
-        <p style={{ fontSize:11, fontWeight:700, color:'#6366F1', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:12 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:'#6366F1', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:12 }}>
           Product Tour
         </p>
         <h2 style={{ fontSize:36, fontWeight:700, color:'#F9FAFB', marginBottom:14, letterSpacing:'0.02em' }}>
@@ -490,10 +662,8 @@ function FeatureShowcase() {
         </p>
       </div>
 
-      {/* Overview grid — shows all 5 features at once */}
       <FeatureOverviewGrid active={active} onSelect={selectFromGrid} />
 
-      {/* Slide */}
       <div style={{
         maxWidth:    1100,
         margin:      '0 auto',
@@ -512,7 +682,6 @@ function FeatureShowcase() {
         transition: 'opacity 0.24s ease, transform 0.24s ease',
       }}>
 
-        {/* Left — text */}
         <div>
           <div style={{
             display:'inline-flex', alignItems:'center', gap:8,
@@ -600,7 +769,6 @@ function FeatureShowcase() {
           </div>
         </div>
 
-        {/* Right — preview */}
         <div>
           {FEATURE_PREVIEWS[f.id]}
         </div>
@@ -642,27 +810,28 @@ export default function Landing() {
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
 
-        {/* Logo */}
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{
-            width:36, height:36, borderRadius:10,
-            background:'linear-gradient(135deg,#6366F1,#8B5CF6)',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:'0 0 0 1px rgba(99,102,241,0.4), 0 4px 16px rgba(99,102,241,0.35)',
-          }}>
-            <Sparkles size={17} color="white" />
-          </div>
-          <div>
-            <p style={{ fontSize:14, fontWeight:700, color:'#F9FAFB', lineHeight:1.15, letterSpacing:'0.02em' }}>
-              FreelanceAI
-            </p>
-            <p style={{ fontSize:9, color:'#6B7280', letterSpacing:'0.06em', textTransform:'uppercase' }}>
-              Career Assistant
-            </p>
-          </div>
+          
+          {/* Logo */}
+<div style={{ display:'flex', alignItems:'center', gap:10 }}>
+  <NexusLogo size={38} />
+  <div>
+    <p style={{
+      fontSize:14, fontWeight:800, color:'#F9FAFB',
+      lineHeight:1.15, letterSpacing:'0.08em', textTransform:'uppercase',
+    }}>
+      NEXUS
+    </p>
+    <p style={{
+      fontSize:9, color:'#6B7280',
+      letterSpacing:'0.08em', textTransform:'uppercase',
+    }}>
+      Freelance Platform
+    </p>
+  </div>
+</div>
         </div>
 
-        {/* Centre links */}
         <div style={{
           display:'flex', gap:2, alignItems:'center',
           background:'rgba(255,255,255,0.03)',
@@ -670,6 +839,7 @@ export default function Landing() {
           borderRadius:30, padding:'4px 6px',
         }}>
           {[
+            { label:'How It Works', href:'#how' },
             { label:'Product Tour', href:'#tour' },
             { label:'FAQ',          href:'#faq'  },
           ].map(({ label, href }) => (
@@ -689,7 +859,6 @@ export default function Landing() {
           ))}
         </div>
 
-        {/* Right CTAs */}
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <button
             onClick={() => navigate('/login')}
@@ -727,12 +896,10 @@ export default function Landing() {
       {/* ════════════════ HERO ════════════════ */}
       <section style={{ padding:'100px 48px 72px', textAlign:'center', position:'relative', overflow:'hidden' }}>
 
-        {/* Glows */}
         <div style={{ position:'absolute', top:'0%', left:'50%', transform:'translateX(-50%)', width:900, height:700, background:'radial-gradient(ellipse,rgba(99,102,241,0.09),transparent 60%)', pointerEvents:'none' }} />
         <div style={{ position:'absolute', top:'25%', left:'12%', width:340, height:340, background:'radial-gradient(ellipse,rgba(139,92,246,0.06),transparent 70%)', pointerEvents:'none' }} />
         <div style={{ position:'absolute', top:'15%', right:'8%',  width:300, height:300, background:'radial-gradient(ellipse,rgba(16,185,129,0.05),transparent 70%)', pointerEvents:'none' }} />
 
-        {/* Headline */}
         <h1
           className="anim-fadeInUp"
           style={{
@@ -751,7 +918,6 @@ export default function Landing() {
           {' '}Engine
         </h1>
 
-        {/* Subheading */}
         <p
           className="anim-fadeInUp delay-1"
           style={{
@@ -764,12 +930,10 @@ export default function Landing() {
           and track your career growth — all in one platform.
         </p>
 
-        {/* ── PROMINENT UPLOAD BOX ── */}
         <div
           className="anim-fadeInUp delay-2"
           style={{ maxWidth:560, margin:'0 auto 56px' }}
         >
-          {/* Score chip */}
           <div style={{
             display:'inline-flex', alignItems:'center', gap:7,
             marginBottom:20,
@@ -784,7 +948,6 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Upload zone */}
           <div
             onDragOver={e => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
@@ -813,7 +976,6 @@ export default function Landing() {
               }
             }}
           >
-            {/* Upload icon */}
             <div style={{
               width:68, height:68, borderRadius:18,
               background:'linear-gradient(135deg,rgba(99,102,241,0.2),rgba(139,92,246,0.15))',
@@ -833,7 +995,6 @@ export default function Landing() {
               PDF or DOCX · Max 5MB · Results in under 10 seconds
             </p>
 
-            {/* Inline CTA */}
             <div style={{ display:'flex', gap:12, justifyContent:'center', alignItems:'center', flexWrap:'wrap' }}>
               <div style={{
                 display:'inline-flex', alignItems:'center', gap:8,
@@ -850,7 +1011,6 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Trust line */}
           <div style={{ display:'flex', justifyContent:'center', gap:20, marginTop:18, flexWrap:'wrap' }}>
             {['Free forever','No credit card','Instant results'].map(t => (
               <div key={t} style={{ display:'flex', alignItems:'center', gap:5 }}>
@@ -889,15 +1049,23 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ════════════════ HOW IT WORKS ════════════════ */}
+      <div id="how">
+        <HowItWorks />
+      </div>
+
       {/* ════════════════ FEATURE SHOWCASE ════════════════ */}
       <div id="tour" style={{ borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
         <FeatureShowcase />
       </div>
 
+      {/* ════════════════ COMPARISON TABLE ════════════════ */}
+      <ComparisonTable />
+
       {/* ════════════════ FAQ ════════════════ */}
       <section id="faq" style={{ padding:'80px 48px', background:'rgba(17,24,39,0.4)' }}>
         <div style={{ textAlign:'center', marginBottom:48 }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#6366F1', textTransform:'uppercase', letterSpacing:'0.12em', marginBottom:12 }}>
+          <p style={{ fontSize:13, fontWeight:700, color:'#6366F1', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:12 }}>
             FAQ
           </p>
           <h2 style={{ fontSize:36, fontWeight:700, color:'#F9FAFB', letterSpacing:'0.02em' }}>
@@ -946,20 +1114,51 @@ export default function Landing() {
       </section>
 
       {/* ════════════════ FOOTER ════════════════ */}
-      <footer style={{
-        padding:'22px 52px',
-        borderTop:'1px solid rgba(255,255,255,0.05)',
-        display:'flex', justifyContent:'space-between', alignItems:'center',
-      }}>
-        <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-          <div style={{ width:22, height:22, borderRadius:6, background:'linear-gradient(135deg,#6366F1,#8B5CF6)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <Sparkles size={11} color="white" />
+      <footer style={{ borderTop:'1px solid rgba(255,255,255,0.05)', padding:'56px 52px 28px' }}>
+        <div style={{
+          maxWidth:1100, margin:'0 auto 40px',
+          display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr 1fr', gap:32,
+        }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:14 }}>
+  <NexusLogo size={28} />
+  <span style={{ fontSize:15, fontWeight:800, color:'#F9FAFB', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+    NEXUS
+  </span>
+</div>
+<p style={{ fontSize:12, color:'#6B7280', lineHeight:1.7, maxWidth:220 }}>
+  AI-powered career assistant for freelancers — resume analysis,
+  job matching, and proposal generation.
+</p>
           </div>
-          <span style={{ fontSize:13, color:'#4B5563', letterSpacing:'0.03em' }}>FreelanceAI © 2025</span>
+
+          {[
+            { title:'Product',   links:['How It Works','Product Tour','FAQ'] },
+            { title:'Company',   links:['About','Final Year Project'] },
+            { title:'Resources', links:['Career Tips','Documentation'] },
+          ].map(col => (
+            <div key={col.title}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
+                {col.title}
+              </p>
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {col.links.map(l => (
+                  <a key={l} href="#" style={{ fontSize:13, color:'#6B7280', textDecoration:'none' }}>{l}</a>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-        <p style={{ fontSize:12, color:'#374151', letterSpacing:'0.03em' }}>
-          Final Year Project · AI-Powered Freelance Career Assistant
-        </p>
+
+       <div style={{ display:'flex', alignItems:'center', gap:9 }}>
+  <NexusLogo size={20} />
+  <span style={{ fontSize:12, color:'#4B5563', letterSpacing:'0.05em' }}>
+    NEXUS © 2025
+  </span>
+</div>
+<p style={{ fontSize:12, color:'#374151' }}>
+  Final Year Project · Nexus Freelance Platform
+</p>
       </footer>
     </div>
   );
