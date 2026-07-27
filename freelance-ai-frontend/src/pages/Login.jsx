@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Button   from '../components/ui/Button';
 import Input    from '../components/ui/Input';
 import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-react';
+import NexusLogo from '../components/ui/NexusLogo';
 
 export default function Login() {
   const { login, loading } = useAuth();
@@ -50,19 +51,15 @@ export default function Login() {
 
         {/* Logo */}
         <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{
-            width:          44,
-            height:         44,
-            borderRadius:   12,
-            background:     'linear-gradient(135deg, #6366F1, #8B5CF6)',
-            display:        'flex',
-            alignItems:     'center',
-            justifyContent: 'center',
-            margin:         '0 auto 14px',
-            boxShadow:      '0 8px 24px rgba(99,102,241,0.35)',
-          }}>
-            <Sparkles size={20} color="white" />
-          </div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:8 }}>
+    <NexusLogo size={40} />
+    <p style={{
+      fontSize:20, fontWeight:800, color:'#F9FAFB',
+      letterSpacing:'0.08em', textTransform:'uppercase',
+    }}>
+      NEXUS
+    </p>
+  </div>
           <h1 style={{ fontSize:22, fontWeight:700, color:'var(--text-primary)', marginBottom:4 }}>
             Welcome back
           </h1>
