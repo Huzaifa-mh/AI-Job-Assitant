@@ -3,6 +3,7 @@ import { Bell, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getInitials } from '../../utils/helpers';
 import { useState } from 'react';
+import ThemeToggle from '../ui/ThemeToggle';
 
 const PAGE_META = {
   '/dashboard':   { title:'Dashboard',          sub:'Welcome back'                     },
@@ -30,7 +31,7 @@ export default function Topbar() {
   return (
     <header style={{
       height:       60,
-      background:   'rgba(11,16,32,0.9)',
+      background:   'var(--topbar-bg)',
       backdropFilter:'blur(12px)',
       borderBottom: '1px solid var(--border)',
       display:      'flex',
@@ -131,7 +132,7 @@ export default function Topbar() {
                     width:      6,
                     height:     6,
                     borderRadius:'50%',
-                    background: n.type === 'success' ? '#10B981' : n.type === 'warning' ? '#F59E0B' : '#6366F1',
+                    background: n.type === 'success' ? 'var(--success)' : n.type === 'warning' ? 'var(--warning)' : 'var(--primary)',
                     flexShrink: 0,
                     marginTop:  5,
                   }} />
@@ -144,6 +145,9 @@ export default function Topbar() {
             </div>
           )}
         </div>
+
+        {/* Theme toggle */}
+        <ThemeToggle />
 
         {/* Divider */}
         <div style={{ width:1, height:20, background:'var(--border)' }} />

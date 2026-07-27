@@ -88,7 +88,7 @@ export default function Login() {
                 borderRadius: 8,
                 padding:      '10px 14px',
                 fontSize:     13,
-                color:        '#FCA5A5',
+                color:        'var(--badge-danger-text)',
                 display:      'flex',
                 alignItems:   'center',
                 gap:          8,

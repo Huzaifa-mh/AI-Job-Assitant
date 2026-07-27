@@ -161,7 +161,7 @@ export default function Proposals() {
 
               {!processedResume && (
                 <div style={{ background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-                  <p style={{ fontSize:12, color:'#FCD34D' }}>
+                  <p style={{ fontSize:12, color:'var(--badge-warning-text)' }}>
                     ⚠ Upload and process a resume first to generate proposals.
                   </p>
                 </div>

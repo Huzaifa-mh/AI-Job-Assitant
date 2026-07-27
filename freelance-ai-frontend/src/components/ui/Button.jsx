@@ -61,7 +61,7 @@ export default function Button({
     },
     glass: {
       background:  'rgba(99,102,241,0.1)',
-      color:       '#A5B4FC',
+      color:       'var(--badge-primary-text)',
       border:      '1px solid rgba(99,102,241,0.25)',
       backdropFilter: 'blur(8px)',
     },

@@ -21,16 +21,20 @@ export const TOKENS = {
     inline:     14,   // icons inline with text
   },
 
-  /* ── Colors ── */
+  /* ── Colors ──
+     Sourced from the CSS custom properties in index.css so these tokens
+     stay correct across both light and dark themes. */
   color: {
     /* Text */
-    textPrimary:   '#F9FAFB',
-    textSecondary: '#9CA3AF',
-    textMuted:     '#6B7280',
-    textEmail:     '#9FA3AC',   // sidebar email, sub-labels
-    textLabel:     '#AEB1B9',   // stat card labels, card meta
+    textPrimary:   'var(--text-primary)',
+    textSecondary: 'var(--text-secondary)',
+    textMuted:     'var(--text-muted)',
+    textEmail:     'var(--text-secondary)',   // sidebar email, sub-labels
+    textLabel:     'var(--text-secondary)',   // stat card labels, card meta
 
-    /* Accent */
+    /* Accent — brand colors stay constant across themes.
+       Kept as hex (not var()) because callers build alpha variants via
+       string concatenation, e.g. `${color}18` — invalid with a var() string. */
     primary:       '#6366F1',
     secondary:     '#8B5CF6',
     success:       '#10B981',
@@ -38,10 +42,10 @@ export const TOKENS = {
     danger:        '#EF4444',
 
     /* Card heading — consistent across ALL pages */
-    cardHeading:   '#F9FAFB',   // main card titles
-    cardSubLabel:  '#AEB1B9',   // secondary labels inside cards
-    cardValue:     '#F9FAFB',   // large number values
-    cardValueSub:  '#9FA3AC',   // small text under values
+    cardHeading:   'var(--text-primary)',    // main card titles
+    cardSubLabel:  'var(--text-secondary)',  // secondary labels inside cards
+    cardValue:     'var(--text-primary)',    // large number values
+    cardValueSub:  'var(--text-secondary)',  // small text under values
   },
 
   /* ── Typography ── */

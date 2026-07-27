@@ -106,7 +106,7 @@ export default function AthenaPanel() {
                     <span key={c} style={{
                       fontSize: 11, padding: '5px 10px', borderRadius: 20,
                       background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-                      color: '#A5B4FC',
+                      color: 'var(--badge-primary-text)',
                     }}>
                       {c}
                     </span>
