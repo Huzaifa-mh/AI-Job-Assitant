@@ -72,3 +72,8 @@ export const proposalAPI = {
   save:            (data) => API.post('/proposals',          data),
   getMyProposals:  ()     => API.get('/proposals'),
 };
+
+// ── Athena (AI Career Assistant) ──────────────────────
+export const athenaAPI = {
+  chat: (data) => API.post('/athena/chat', data, { timeout: 60000 }),
+};

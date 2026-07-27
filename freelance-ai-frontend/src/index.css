@@ -172,6 +172,16 @@ button, input, textarea, select { font-family: var(--font); }
   border-radius: var(--radius-sm);
 }
 
+/* ─── Athena widget responsiveness ─── */
+@media (max-width: 480px) {
+  .athena-panel {
+    width: calc(100vw - 24px) !important;
+    right: 12px !important;
+    bottom: 84px !important;
+    max-height: calc(100vh - 100px) !important;
+  }
+}
+
 /* ─── Staggered animation delays ─── */
 .delay-1 { animation-delay: 0.05s; }
 .delay-2 { animation-delay: 0.10s; }

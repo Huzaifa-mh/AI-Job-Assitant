@@ -16,6 +16,9 @@ import AppLayout from './components/layout/AppLayout';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
 
+// ── Global AI assistant ──
+import AthenaWidget from './components/athena/AthenaWidget';
+
 function ComingSoon({ title }) {
   return (
     <AppLayout>
@@ -88,6 +91,7 @@ export default function App() {
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
+      <AthenaWidget />
     </AuthProvider>
   );
 }

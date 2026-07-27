@@ -4,7 +4,7 @@ from extractor import extract_text_from_pdf
 from skill_extractor import extract_skills
 from matcher import calculate_match
 from ai_provider import generate_content, AIProviderError
-from prompt_builder import build_prompt
+from prompt_builder import build_prompt, build_athena_system_prompt
 from db import get_connection
 import os
 import logging
@@ -325,6 +325,34 @@ async def generate_proposal(data: ProposalRequest):
     except Exception as e:
         logger.error(f"Proposal generation error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+class AthenaMessage(BaseModel):
+    role:    str   # "user" | "assistant"
+    content: str
+
+class AthenaChatRequest(BaseModel):
+    message: str
+    history: list[AthenaMessage] = []
+    context: dict = {}
+
+@app.post("/athena-chat")
+async def athena_chat(data: AthenaChatRequest):
+    try:
+        system_prompt = build_athena_system_prompt(data.context)
+        messages = [{"role": "system", "content": system_prompt}]
+        messages += [{"role": m.role, "content": m.content} for m in data.history[-10:]]
+        messages.append({"role": "user", "content": data.message})
+
+        content = generate_content(messages=messages, temperature=0.2, top_p=0.8, max_tokens=700)
+        return {"content": content, "ai_powered": True}
+
+    except AIProviderError as e:
+        logger.error(f"Athena chat error: {str(e)}")
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Athena chat error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 class FormFillRequest(BaseModel):
     user_id:   int
