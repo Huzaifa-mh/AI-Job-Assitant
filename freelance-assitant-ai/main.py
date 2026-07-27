@@ -3,6 +3,8 @@ from pydantic import BaseModel
 from extractor import extract_text_from_pdf
 from skill_extractor import extract_skills
 from matcher import calculate_match
+from ai_provider import generate_content, AIProviderError
+from prompt_builder import build_prompt, build_athena_system_prompt
 from db import get_connection
 import os
 import logging
@@ -130,8 +132,9 @@ async def match_job(data: MatchRequest):
         )
         
         result = calculate_match(resume_text, job_desc)
-        
+
         missing_json = json.dumps(result["missing_skills"])
+        matched_json = json.dumps(result["matched_skills"])
 
         cursor.execute(
           """
@@ -142,20 +145,21 @@ async def match_job(data: MatchRequest):
                 UPDATE Job_Matches
                 SET match_score    = %s,
                     missing_skills = %s,
+                    matched_skills = %s,
                     matched_at     = GETDATE()
                 WHERE user_id = %s AND job_id = %s
             ELSE
-                INSERT INTO Job_Matches (user_id, job_id, match_score, missing_skills)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO Job_Matches (user_id, job_id, match_score, missing_skills, matched_skills)
+                VALUES (%s, %s, %s, %s, %s)
             """,
             (
                 data.user_id, data.job_id,
-                result["match_score"], missing_json,
+                result["match_score"], missing_json, matched_json,
                 data.user_id, data.job_id,
                 data.user_id, data.job_id,
-                result["match_score"], missing_json
+                result["match_score"], missing_json, matched_json
             )
-            
+
         )
         conn.commit()
         cursor.close()
@@ -209,25 +213,26 @@ async def match_all_jobs(data: BulkMatchRequest):
             
             result = calculate_match(resume_text, job_desc)
             missing_json = json.dumps(result["missing_skills"])
-            
+            matched_json = json.dumps(result["matched_skills"])
+
             cursor.execute(
                 """
                 IF EXISTS (
                     SELECT 1 FROM Job_Matches WHERE user_id = %s AND job_id = %s
                 )
                     UPDATE Job_Matches
-                    SET match_score = %s, missing_skills = %s, matched_at = GETDATE()
+                    SET match_score = %s, missing_skills = %s, matched_skills = %s, matched_at = GETDATE()
                     WHERE user_id = %s AND job_id = %s
                 ELSE
-                    INSERT INTO Job_Matches (user_id, job_id, match_score, missing_skills)
-                    VALUES (%s, %s, %s, %s)
+                    INSERT INTO Job_Matches (user_id, job_id, match_score, missing_skills, matched_skills)
+                    VALUES (%s, %s, %s, %s, %s)
                 """,
                 (
                     data.user_id, job_id,
-                    result["match_score"], missing_json,
+                    result["match_score"], missing_json, matched_json,
                     data.user_id, job_id,
                     data.user_id, job_id,
-                    result["match_score"], missing_json,
+                    result["match_score"], missing_json, matched_json,
                 )
             )
             
@@ -257,6 +262,97 @@ async def match_all_jobs(data: BulkMatchRequest):
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+class ProposalRequest(BaseModel):
+    user_id:      int
+    resume_id:    int
+    job_id:       int
+    content_type: str  # 'cover_letter' | 'proposal'
+
+@app.post("/generate-proposal")
+async def generate_proposal(data: ProposalRequest):
+    if data.content_type not in ("cover_letter", "proposal"):
+        raise HTTPException(status_code=400, detail="content_type must be 'cover_letter' or 'proposal'")
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT raw_text FROM Resumes WHERE resume_id = %s AND user_id = %s",
+            (data.resume_id, data.user_id)
+        )
+        resume_row = cursor.fetchone()
+        if not resume_row or not resume_row["raw_text"]:
+            raise HTTPException(status_code=400, detail="Resume not found or not yet processed.")
+
+        cursor.execute(
+            "SELECT title, company, description, employment_type FROM Jobs WHERE job_id = %s",
+            (data.job_id,)
+        )
+        job_row = cursor.fetchone()
+        if not job_row:
+            raise HTTPException(status_code=404, detail="Job not found.")
+
+        cursor.execute(
+            "SELECT match_score, missing_skills, matched_skills FROM Job_Matches WHERE user_id = %s AND job_id = %s",
+            (data.user_id, data.job_id)
+        )
+        match_row = cursor.fetchone()
+        if not match_row:
+            raise HTTPException(status_code=400, detail="Run job matching before generating a proposal.")
+
+        cursor.close()
+        conn.close()
+
+        match = {
+            "match_score":    match_row["match_score"],
+            "missing_skills": json.loads(match_row["missing_skills"] or "[]"),
+            "matched_skills": json.loads(match_row["matched_skills"] or "[]"),
+        }
+
+        prompt = build_prompt(data.content_type, resume_row["raw_text"], job_row, match)
+        content = generate_content(prompt)
+
+        return {"content": content, "ai_powered": True}
+
+    except HTTPException:
+        raise
+    except AIProviderError as e:
+        logger.error(f"Proposal generation error: {str(e)}")
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Proposal generation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+class AthenaMessage(BaseModel):
+    role:    str   # "user" | "assistant"
+    content: str
+
+class AthenaChatRequest(BaseModel):
+    message: str
+    history: list[AthenaMessage] = []
+    context: dict = {}
+
+@app.post("/athena-chat")
+async def athena_chat(data: AthenaChatRequest):
+    try:
+        system_prompt = build_athena_system_prompt(data.context)
+        messages = [{"role": "system", "content": system_prompt}]
+        messages += [{"role": m.role, "content": m.content} for m in data.history[-10:]]
+        messages.append({"role": "user", "content": data.message})
+
+        content = generate_content(messages=messages, temperature=0.2, top_p=0.8, max_tokens=700)
+        return {"content": content, "ai_powered": True}
+
+    except AIProviderError as e:
+        logger.error(f"Athena chat error: {str(e)}")
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Athena chat error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 class FormFillRequest(BaseModel):
     user_id:   int

@@ -8,7 +8,7 @@ export default function Card({
   onClick,
 }) {
   const base = {
-    background:     glass ? 'rgba(17,24,39,0.8)' : 'var(--bg-card)',
+    background:     glass ? 'var(--glass-bg)' : 'var(--bg-card)',
     border:         '1px solid var(--border)',
     borderRadius:   'var(--radius)',
     padding,

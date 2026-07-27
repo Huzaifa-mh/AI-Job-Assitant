@@ -259,7 +259,7 @@ export default function Sidebar() {
                   }}>
                     <Icon
                       size={ICON_SIZE}
-                      color={isActive ? '#A5B4FC' : 'var(--text-secondary)'}
+                      color={isActive ? 'var(--badge-primary-text)' : 'var(--text-secondary)'}
                     />
                   </div>
 
@@ -269,7 +269,7 @@ export default function Sidebar() {
                       <span style={{
                         fontSize:     13,
                         fontWeight:   isActive ? 600 : 400,
-                        color:        isActive ? '#E0E7FF' : 'var(--text-secondary)',
+                        color:        isActive ? 'var(--badge-primary-text)' : 'var(--text-secondary)',
                         flex:         1,
                         whiteSpace:   'nowrap',
                         overflow:     'hidden',

@@ -9,11 +9,15 @@ import Dashboard   from './pages/Dashboard';
 import Resume      from './pages/Resume';
 import Jobs        from './pages/Jobs';
 import Skills      from './pages/Skills';
+import Proposals   from './pages/Proposals';
 
 // ── Placeholder for pages not built yet ──
 import AppLayout from './components/layout/AppLayout';
 import Analytics from './pages/Analytics';
 import Profile from './pages/Profile';
+
+// ── Global AI assistant ──
+import AthenaWidget from './components/athena/AthenaWidget';
 
 function ComingSoon({ title }) {
   return (
@@ -70,7 +74,7 @@ function AppRoutes() {
       {/* Protected — placeholders (swap as batches arrive) */}
      <Route path="/jobs"        element={<Protected><Jobs        /></Protected>} />
       <Route path="/skills"      element={<Protected><Skills      /></Protected>} />
-      <Route path="/proposals"   element={<Protected><ComingSoon title="Proposal Generator"  /></Protected>} />
+      <Route path="/proposals"   element={<Protected><Proposals /></Protected>} />
       <Route path="/negotiation" element={<Protected><ComingSoon title="Negotiation Simulator"/></Protected>} />
       <Route path="/analytics"   element={<Protected><Analytics title="Career Analytics"    /></Protected>} />
       <Route path="/profile"     element={<Protected><Profile title="Profile"             /></Protected>} />
@@ -87,6 +91,7 @@ export default function App() {
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>
+      <AthenaWidget />
     </AuthProvider>
   );
 }

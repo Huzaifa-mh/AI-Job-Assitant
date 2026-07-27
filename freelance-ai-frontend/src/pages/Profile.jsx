@@ -273,7 +273,7 @@ export default function Profile() {
                         {parsed.skills.map(s => (
                           <span key={s} style={{
                             padding:'5px 12px', borderRadius:8, fontSize:12, fontWeight:500,
-                            background:'rgba(99,102,241,0.1)', color:'#A5B4FC',
+                            background:'rgba(99,102,241,0.1)', color:'var(--badge-primary-text)',
                             border:'1px solid rgba(99,102,241,0.2)',
                           }}>
                             {s}

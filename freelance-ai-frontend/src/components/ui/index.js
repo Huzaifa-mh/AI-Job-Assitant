@@ -7,4 +7,5 @@ export { Skeleton, PageLoader   } from './Spinner';
 export { default as ProgressBar } from './ProgressBar';
 export { default as StatCard    } from './StatCard';
 export { default as EmptyState  } from './EmptyState';
+export { default as Modal       } from './Modal';
 export { default as Toast, default as ToastContainer } from './Toast';

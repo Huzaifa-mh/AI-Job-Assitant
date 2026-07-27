@@ -4,7 +4,8 @@
   padding: 0;
 }
 
-:root {
+:root,
+[data-theme="dark"] {
   /* Colors */
   --bg:           #0B1020;
   --bg-card:      #111827;
@@ -31,6 +32,58 @@
   --radius-md:    12px;
   --sidebar-width:240px;
   --font:         'Inter', sans-serif;
+
+  /* Translucent surfaces (sticky topbar, glass cards) */
+  --topbar-bg:    rgba(11,16,32,0.9);
+  --glass-bg:     rgba(17,24,39,0.85);
+  --overlay-bg:   rgba(17,24,39,0.5);
+  --shadow-color: rgba(0,0,0,0.4);
+
+  /* Badge text — pastel, tuned for contrast on tinted-dark badge backgrounds */
+  --badge-primary-text: #A5B4FC;
+  --badge-success-text: #6EE7B7;
+  --badge-warning-text: #FCD34D;
+  --badge-danger-text:  #FCA5A5;
+  --badge-purple-text:  #C4B5FD;
+  --badge-gray-text:    #9CA3AF;
+  --badge-blue-text:    #93C5FD;
+}
+
+[data-theme="light"] {
+  /* Colors */
+  --bg:           #FFFFFF;
+  --bg-card:      #FFFFFF;
+  --bg-elevated:  #F3F4F6;
+  --primary:      #6366F1;
+  --primary-hover:#4f52d9;
+  --secondary:    #8B5CF6;
+  --success:      #10B981;
+  --warning:      #F59E0B;
+  --danger:       #EF4444;
+
+  /* Text */
+  --text-primary:   #111827;
+  --text-secondary: #4B5563;
+  --text-muted:     #6B7280;
+
+  /* Borders */
+  --border:       #E5E7EB;
+  --border-light: #D1D5DB;
+
+  /* Translucent surfaces (sticky topbar, glass cards) */
+  --topbar-bg:    rgba(255,255,255,0.85);
+  --glass-bg:     rgba(255,255,255,0.75);
+  --overlay-bg:   rgba(249,250,251,0.7);
+  --shadow-color: rgba(15,23,42,0.1);
+
+  /* Badge text — darker/saturated, tuned for contrast on tinted-light badge backgrounds */
+  --badge-primary-text: #4338CA;
+  --badge-success-text: #047857;
+  --badge-warning-text: #B45309;
+  --badge-danger-text:  #B91C1C;
+  --badge-purple-text:  #6D28D9;
+  --badge-gray-text:    #4B5563;
+  --badge-blue-text:    #1D4ED8;
 }
 /* ══════════════════════════════════════════
    GLOBAL CONSISTENCY — all text elements
@@ -74,6 +127,22 @@ body {
   min-height: 100vh;
 }
 
+/* ─── Theme transitions ───
+   Smooth color/surface changes on toggle, without animating layout-affecting
+   properties (avoids jank on hover/transform transitions elsewhere). */
+body,
+button, input, textarea, select {
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  body,
+  button, input, textarea, select {
+    transition: none;
+  }
+}
+
 a    { color: inherit; text-decoration: none; }
 button, input, textarea, select { font-family: var(--font); }
 
@@ -91,7 +160,7 @@ button, input, textarea, select { font-family: var(--font); }
 }
 
 .glass {
-  background: rgba(17, 24, 39, 0.85);
+  background: var(--glass-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
@@ -146,6 +215,11 @@ button, input, textarea, select { font-family: var(--font); }
   50%       { transform: translateY(-8px); }
 }
 
+@keyframes themeIconIn {
+  from { opacity: 0; transform: scale(0.5) rotate(-90deg); }
+  to   { opacity: 1; transform: scale(1)   rotate(0deg);   }
+}
+
 @keyframes gradientShift {
   0%   { background-position: 0%   50%; }
   50%  { background-position: 100% 50%; }
@@ -170,6 +244,16 @@ button, input, textarea, select { font-family: var(--font); }
   background-size: 400px 100%;
   animation: shimmer 1.4s infinite;
   border-radius: var(--radius-sm);
+}
+
+/* ─── Athena widget responsiveness ─── */
+@media (max-width: 480px) {
+  .athena-panel {
+    width: calc(100vw - 24px) !important;
+    right: 12px !important;
+    bottom: 84px !important;
+    max-height: calc(100vh - 100px) !important;
+  }
 }
 
 /* ─── Staggered animation delays ─── */

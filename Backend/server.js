@@ -39,3 +39,9 @@ app.use('/api/match', matchRoutes);
 
 const applyRoutes = require('./Routes/applyRoutes');
 app.use('/api/apply', applyRoutes);
+
+const proposalRoutes = require('./Routes/proposalRoutes');
+app.use('/api/proposals', proposalRoutes);
+
+const athenaRoutes = require('./Routes/athenaRoutes');
+app.use('/api/athena', athenaRoutes);
