@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Button   from '../components/ui/Button';
 import Input    from '../components/ui/Input';
 import { Sparkles, Mail, Lock, User, ArrowRight, CheckCircle } from 'lucide-react';
+import NexusLogo from '../components/ui/NexusLogo';
 
 const PERKS = [
   'AI resume analysis in under 10 seconds',
@@ -38,6 +39,7 @@ export default function Register() {
       display:        'grid',
       gridTemplateColumns: '1fr 1fr',
       background:     'var(--bg)',
+      letterSpacing:  '0.05em',
     }}>
 
       {/* ── Left panel — perks ── */}
@@ -58,21 +60,29 @@ export default function Register() {
           pointerEvents:'none',
         }} />
 
-        {/* Logo */}
-        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:56 }}>
-          <div style={{
-            width:          36, height:36, borderRadius:9,
-            background:     'linear-gradient(135deg, #6366F1, #8B5CF6)',
-            display:        'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:      '0 4px 14px rgba(99,102,241,0.4)',
+        {/* Logo + wordmark — single aligned row */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:40 }}>
+          <NexusLogo size={40} />
+          <span style={{
+            fontWeight:    700,
+            fontSize:      22,
+            color:         'var(--text-primary)',
+            letterSpacing: '0.05em',
+            lineHeight:    1,
           }}>
-            <Sparkles size={16} color="white" />
-          </div>
-          <span style={{ fontWeight:700, fontSize:15, color:'var(--text-primary)' }}>FreelanceAI</span>
+            Nexus
+          </span>
         </div>
 
         <div className="anim-fadeInUp">
-          <h2 style={{ fontSize:32, fontWeight:700, color:'var(--text-primary)', marginBottom:12, lineHeight:1.2 }}>
+          <h2 style={{
+            fontSize:      32,
+            fontWeight:    700,
+            color:         'var(--text-primary)',
+            marginBottom:  12,
+            lineHeight:    1.2,
+            letterSpacing: '0.05em',
+          }}>
             Supercharge your{' '}
             <span style={{
               background:           'linear-gradient(135deg, #6366F1, #8B5CF6)',
@@ -83,7 +93,13 @@ export default function Register() {
               freelance career
             </span>
           </h2>
-          <p style={{ fontSize:15, color:'var(--text-secondary)', marginBottom:40, lineHeight:1.7 }}>
+          <p style={{
+            fontSize:      15,
+            color:         'var(--text-secondary)',
+            marginBottom:  40,
+            lineHeight:    1.7,
+            letterSpacing: '0.05em',
+          }}>
             Join 50,000+ freelancers using AI to land better clients,
             write winning proposals, and grow their income.
           </p>
@@ -109,7 +125,7 @@ export default function Register() {
                 }}>
                   <CheckCircle size={12} color="#10B981" />
                 </div>
-                <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.6 }}>{perk}</p>
+                <p style={{ fontSize:14, color:'var(--text-secondary)', lineHeight:1.6, letterSpacing:'0.05em' }}>{perk}</p>
               </div>
             ))}
           </div>
@@ -126,10 +142,10 @@ export default function Register() {
         <div style={{ width:'100%', maxWidth:400 }} className="anim-fadeInUp">
 
           <div style={{ marginBottom:28 }}>
-            <h1 style={{ fontSize:22, fontWeight:700, color:'var(--text-primary)', marginBottom:4 }}>
+            <h1 style={{ fontSize:22, fontWeight:700, color:'var(--text-primary)', marginBottom:4, letterSpacing:'0.05em' }}>
               Create your account
             </h1>
-            <p style={{ fontSize:14, color:'var(--text-secondary)' }}>
+            <p style={{ fontSize:14, color:'var(--text-secondary)', letterSpacing:'0.05em' }}>
               Free forever. No credit card required.
             </p>
           </div>
@@ -151,6 +167,7 @@ export default function Register() {
                   padding:      '10px 14px',
                   fontSize:     13,
                   color:        'var(--badge-danger-text)',
+                  letterSpacing:'0.05em',
                 }}>
                   ⚠ {error}
                 </div>
@@ -199,13 +216,13 @@ export default function Register() {
                 Create free account
               </Button>
 
-              <p style={{ fontSize:11, color:'var(--text-muted)', textAlign:'center', lineHeight:1.6 }}>
+              <p style={{ fontSize:11, color:'var(--text-muted)', textAlign:'center', lineHeight:1.6, letterSpacing:'0.05em' }}>
                 By signing up, you agree to our Terms of Service and Privacy Policy.
               </p>
             </form>
           </div>
 
-          <p style={{ textAlign:'center', marginTop:20, fontSize:13, color:'var(--text-secondary)' }}>
+          <p style={{ textAlign:'center', marginTop:20, fontSize:13, color:'var(--text-secondary)', letterSpacing:'0.05em' }}>
             Already have an account?{' '}
             <Link to="/login" style={{ color:'var(--primary)', fontWeight:600 }}>
               Sign in
