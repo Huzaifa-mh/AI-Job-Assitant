@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 /* ── Nexus 'N' mark SVG logo (background path removed for transparency) ── */
-function NexusLogo({ size = 34}) {
+function NexusLogo({ size = 36}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -78,8 +78,8 @@ const NAV_ITEMS = [
 ];
 
 /* ── Design tokens for sidebar ── */
-const ICON_SIZE          = 18;    // nav icon size
-const ICON_BOX           = 25;    // icon wrapper width & height ← your request
+const ICON_SIZE          = 22;    // nav icon size
+const ICON_BOX           = 28;    // icon wrapper width & height ← your request
 const LOGOUT_ICON_SIZE   = 18;    // logout icon ← your request
 const COLLAPSE_ICON_SIZE = 16;    // collapse/expand toggle icon
 const ACTIVE_ARROW_SIZE  = 16;    // active page chevron ← your request
