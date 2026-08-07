@@ -1,17 +1,22 @@
 const axios            = require('axios');
 const { getPool, sql } = require('../config/db');
+const { getActiveResumeId } = require('../services/resumeService');
 
 const FASTAPI_URL = 'http://localhost:8000';
 
 // POST /api/match/job
-// Match resume against a single job
+// Match the user's active resume against a single job
 const matchSingleJob = async (req, res, next) => {
   try {
-    const { resume_id, job_id } = req.body;
+    const { job_id } = req.body;
     const user_id = req.user.user_id;
 
-    if (!resume_id || !job_id)
-      return res.status(400).json({ message: 'resume_id and job_id are required' });
+    if (!job_id)
+      return res.status(400).json({ message: 'job_id is required' });
+
+    const resume_id = await getActiveResumeId(user_id);
+    if (!resume_id)
+      return res.status(400).json({ message: 'Please select or upload an active resume.' });
 
     const response = await axios.post(`${FASTAPI_URL}/match-job`, {
       user_id,
@@ -28,14 +33,14 @@ const matchSingleJob = async (req, res, next) => {
 };
 
 // POST /api/match/all
-// Match resume against ALL cached jobs
+// Match the user's active resume against ALL cached jobs
 const matchAllJobs = async (req, res, next) => {
   try {
-    const { resume_id } = req.body;
     const user_id = req.user.user_id;
 
+    const resume_id = await getActiveResumeId(user_id);
     if (!resume_id)
-      return res.status(400).json({ message: 'resume_id is required' });
+      return res.status(400).json({ message: 'Please select or upload an active resume.' });
 
     const response = await axios.post(`${FASTAPI_URL}/match-all-jobs`, {
       user_id,

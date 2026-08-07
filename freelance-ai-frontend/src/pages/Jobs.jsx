@@ -3,7 +3,7 @@ import { jobsAPI, matchAPI, resumeAPI, applyAPI } from '../services/api';
 import {
   scoreColor, parseMissingSkills, truncate,
   matchTier, buildMatchReason, getEmploymentTags,
-  parseSalaryValue, salaryTier,
+  parseSalaryValue, salaryTier, getFileName,
 } from '../utils/helpers';
 import AppLayout     from '../components/layout/AppLayout';
 import { useAppToast } from '../components/layout/AppLayout';
@@ -18,6 +18,7 @@ import {
   Search, Briefcase, MapPin, Building2,
   ExternalLink, Zap, Filter, RefreshCw,
   ChevronLeft, ChevronRight, X, Sparkles,
+  FileText, AlertTriangle,
 } from 'lucide-react';
 
 /* ── Fetch form defaults ── */
@@ -78,7 +79,7 @@ export default function Jobs() {
   /* ── Initial load ── */
   useEffect(() => {
     loadJobs();
-    resumeAPI.getMine().then(r => setResumes(r.data || [])).catch(() => {});
+    resumeAPI.getAll().then(r => setResumes(r.data || [])).catch(() => {});
     matchAPI.getResults().then(r => {
       const map = {};
       (r.data?.results || []).forEach(x => { map[x.job_id] = x; });
@@ -106,19 +107,18 @@ export default function Jobs() {
     } finally { setFetching(false); }
   };
 
+  /* ── Active resume ── */
+  const activeResume = resumes.find(r => r.is_active);
+
   /* ── Match single job ── */
   const matchSingle = async (job_id) => {
-    const processed = resumes.find(r => r.status === 'processed');
-    if (!processed) {
-      toast?.error('Please upload and process a resume first.');
+    if (!activeResume) {
+      toast?.error('No active resume selected. Please select or upload a resume to continue matching.');
       return;
     }
     setMatchingId(job_id);
     try {
-      const { data } = await matchAPI.matchJob({
-        resume_id: processed.resume_id,
-        job_id,
-      });
+      const { data } = await matchAPI.matchJob({ job_id });
       setMatches(m => ({
         ...m,
         [job_id]: {
@@ -253,6 +253,31 @@ export default function Jobs() {
             </Button>
           </div>
         </div>
+
+        {/* ── Active resume notice ── */}
+        {activeResume ? (
+          <div className="anim-fadeInUp" style={{
+            display:'flex', alignItems:'center', gap:8,
+            background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)',
+            borderRadius:10, padding:'10px 14px',
+          }}>
+            <FileText size={13} color="#10B981" />
+            <p style={{ fontSize:12, color:'var(--text-secondary)' }}>
+              Using Active Resume: <strong style={{ color:'var(--text-primary)' }}>{getFileName(activeResume.file_path)}</strong>
+            </p>
+          </div>
+        ) : (
+          <div className="anim-fadeInUp" style={{
+            display:'flex', alignItems:'center', gap:8,
+            background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)',
+            borderRadius:10, padding:'10px 14px',
+          }}>
+            <AlertTriangle size={13} color="#F59E0B" />
+            <p style={{ fontSize:12, color:'var(--badge-warning-text)' }}>
+              No active resume selected. Please select or upload a resume to continue matching.
+            </p>
+          </div>
+        )}
 
         {/* ── Fetch panel ── */}
         {showFetch && (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import { matchAPI, resumeAPI, proposalAPI } from '../services/api';
-import { scoreColor, parseMissingSkills, truncate } from '../utils/helpers';
+import { scoreColor, parseMissingSkills, truncate, getFileName } from '../utils/helpers';
 import AppLayout, { useAppToast } from '../components/layout/AppLayout';
 import Card        from '../components/ui/Card';
 import Button       from '../components/ui/Button';
@@ -13,7 +13,7 @@ import Modal        from '../components/ui/Modal';
 import {
   Zap, Copy, Download, RefreshCw, CheckCircle,
   Sparkles, Briefcase, Mail, FileText, Star,
-  Building2, MapPin, DollarSign,
+  Building2, MapPin, DollarSign, AlertTriangle,
 } from 'lucide-react';
 
 const CONTENT_LABELS = {
@@ -41,7 +41,7 @@ export default function Proposals() {
   useEffect(() => {
     Promise.all([
       matchAPI.getTop().catch(()      => ({ data: [] })),
-      resumeAPI.getMine().catch(()    => ({ data: [] })),
+      resumeAPI.getAll().catch(()     => ({ data: [] })),
       proposalAPI.getMyProposals().catch(() => ({ data: [] })),
     ]).then(([m, r, p]) => {
       setTopMatches(m.data || []);
@@ -50,11 +50,11 @@ export default function Proposals() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const processedResume = resumes.find(r => r.status === 'processed');
+  const activeResume = resumes.find(r => r.is_active);
 
   const generate = async (job, content_type) => {
-    if (!processedResume) {
-      toast?.error('Please upload and process a resume first.');
+    if (!activeResume) {
+      toast?.error('No active resume selected. Please select or upload a resume to continue.');
       return;
     }
     setModalJob(job);
@@ -65,8 +65,7 @@ export default function Proposals() {
     setModalGenerating(true);
     try {
       const { data } = await proposalAPI.generate({
-        job_id:       job.job_id,
-        resume_id:    processedResume.resume_id,
+        job_id: job.job_id,
         content_type,
       });
       setModalContent(data.content);
@@ -159,10 +158,18 @@ export default function Proposals() {
                 <Badge color="warning">Top {topMatches.length || 5}</Badge>
               </div>
 
-              {!processedResume && (
-                <div style={{ background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+              {activeResume ? (
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+                  <FileText size={13} color="#10B981" />
+                  <p style={{ fontSize:12, color:'var(--text-secondary)' }}>
+                    Using Active Resume: <strong style={{ color:'var(--text-primary)' }}>{getFileName(activeResume.file_path)}</strong>
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.2)', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+                  <AlertTriangle size={13} color="#F59E0B" />
                   <p style={{ fontSize:12, color:'var(--badge-warning-text)' }}>
-                    ⚠ Upload and process a resume first to generate proposals.
+                    No active resume selected. Please select or upload a resume to continue matching.
                   </p>
                 </div>
               )}

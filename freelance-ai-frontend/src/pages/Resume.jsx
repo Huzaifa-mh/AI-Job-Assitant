@@ -9,9 +9,10 @@ import Button      from '../components/ui/Button';
 import Badge       from '../components/ui/Badge';
 import Spinner     from '../components/ui/Spinner';
 import EmptyState  from '../components/ui/EmptyState';
+import Modal       from '../components/ui/Modal';
 import {
   Upload, FileText, CheckCircle, AlertCircle,
-  Sparkles, RefreshCw, Briefcase, Trash2, Clock,
+  Sparkles, RefreshCw, Briefcase, Trash2, Clock, Star,
 } from 'lucide-react';
 
 const HOW_IT_WORKS = [
@@ -40,20 +41,84 @@ export default function Resume() {
   const [matching,  setMatching]  = useState(null); // resume_id being matched
   const [polling,   setPolling]   = useState(null);
   const [loading,   setLoading]   = useState(true);
+  const [activatingId, setActivatingId] = useState(null);
+  const [deletingId,   setDeletingId]   = useState(null);
+  const [retryingId,   setRetryingId]   = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // resume pending delete confirmation
+
+  // Tracks the live setInterval id (not just for rendering) so it can always be cleared,
+  // and whether the component is still mounted so a late poll tick never touches state
+  // (or triggers a toast) after the user has navigated away.
+  const pollIntervalRef = useRef(null);
+  const isMountedRef    = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
 
   /* ── Fetch resumes ── */
   const fetchResumes = async () => {
     try {
-      const { data } = await resumeAPI.getMine();
-      setResumes(data || []);
+      const { data } = await resumeAPI.getAll();
+      if (isMountedRef.current) setResumes(data || []);
     } catch { /* silent */ }
-    finally { setLoading(false); }
+    finally { if (isMountedRef.current) setLoading(false); }
+  };
+
+  /* ── Set a resume as active ── */
+  const setActive = async (resumeId) => {
+    setActivatingId(resumeId);
+    try {
+      await resumeAPI.activate(resumeId);
+      if (isMountedRef.current)
+        setResumes(list => list.map(r => ({ ...r, is_active: r.resume_id === resumeId })));
+      toast?.success('Active resume updated.');
+    } catch (e) {
+      toast?.error(e.response?.data?.message || 'Failed to set active resume.');
+    } finally {
+      if (isMountedRef.current) setActivatingId(null);
+    }
+  };
+
+  /* ── Delete a resume ── */
+  const deleteResume = async () => {
+    if (!confirmTarget) return;
+    const resumeId = confirmTarget.resume_id;
+    setDeletingId(resumeId);
+    try {
+      const { data } = await resumeAPI.remove(resumeId);
+      if (isMountedRef.current) {
+        setResumes(data.resumes || []);
+        setConfirmTarget(null);
+      }
+      toast?.success(data.message || 'Resume deleted successfully.');
+    } catch (e) {
+      toast?.error(e.response?.data?.message || 'Failed to delete resume.');
+    } finally {
+      if (isMountedRef.current) setDeletingId(null);
+    }
   };
 
   useEffect(() => { fetchResumes(); }, []);
 
-  /* ── Cleanup polling on unmount ── */
-  useEffect(() => () => { if (polling) clearInterval(polling); }, [polling]);
+  /* ── Retry an errored resume: remove it and prompt a fresh upload ── */
+  const retryResume = async (resume) => {
+    setRetryingId(resume.resume_id);
+    try {
+      const { data } = await resumeAPI.remove(resume.resume_id);
+      if (isMountedRef.current) setResumes(data.resumes || []);
+      toast?.info('Removed the failed resume. Please upload it again.');
+      fileRef.current?.click();
+    } catch (e) {
+      toast?.error(e.response?.data?.message || 'Failed to remove the errored resume.');
+    } finally {
+      if (isMountedRef.current) setRetryingId(null);
+    }
+  };
 
   /* ── Upload handler ── */
   const uploadFile = async (file) => {
@@ -78,28 +143,41 @@ export default function Resume() {
       toast?.success(`Resume uploaded! Processing started...`);
       fetchResumes();
 
-      // Poll until processed or failed
+      // Poll until the resume leaves 'pending' — processed, failed, or errored (timeout/AI crash)
       const id = setInterval(async () => {
+        if (!isMountedRef.current) { clearInterval(id); return; }
         try {
           const s = await resumeAPI.getStatus(data.resume_id);
+          if (!isMountedRef.current) return;
+
           if (s.data.status !== 'pending') {
             clearInterval(id);
+            pollIntervalRef.current = null;
             setPolling(null);
             fetchResumes();
+
             if (s.data.status === 'processed') {
               toast?.success('✅ Resume processed! Skills extracted successfully.');
+            } else if (s.data.status === 'error' || s.data.status === 'failed') {
+              toast?.error('Resume parsing failed or timed out. You can retry or edit details manually.');
             } else {
               toast?.error('❌ Processing failed. Please try again.');
             }
           }
-        } catch { clearInterval(id); setPolling(null); }
+        } catch {
+          if (!isMountedRef.current) return;
+          clearInterval(id);
+          pollIntervalRef.current = null;
+          setPolling(null);
+        }
       }, 2500);
 
+      pollIntervalRef.current = id;
       setPolling(id);
     } catch (e) {
       toast?.error(e.response?.data?.message || 'Upload failed. Please try again.');
     } finally {
-      setUploading(false);
+      if (isMountedRef.current) setUploading(false);
     }
   };
 
@@ -114,11 +192,11 @@ export default function Resume() {
     try {
       const { data } = await matchAPI.matchAll({ resume_id });
       toast?.success(`✅ Matched against ${data.total_jobs_matched} jobs!`);
-      setTimeout(() => navigate('/jobs'), 1200);
+      setTimeout(() => { if (isMountedRef.current) navigate('/jobs'); }, 1200);
     } catch (e) {
       toast?.error(e.response?.data?.message || 'Matching failed. Make sure jobs are fetched first.');
     } finally {
-      setMatching(null);
+      if (isMountedRef.current) setMatching(null);
     }
   };
 
@@ -289,20 +367,23 @@ export default function Resume() {
                 />
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                  {resumes.map((r, i) => (
+                  {resumes.map((r, i) => {
+                    const isErrored = r.status === 'error' || r.status === 'failed';
+                    return (
                     <div
                       key={r.resume_id}
                       className={`anim-fadeInUp delay-${Math.min(i + 1, 5)}`}
                       style={{
                         background:   'var(--bg-elevated)',
-                        border:       '1px solid var(--border)',
+                        border:       `1px solid ${isErrored ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
                         borderRadius: 12,
                         padding:      '14px 16px',
                         display:      'flex',
-                        alignItems:   'center',
-                        gap:          14,
+                        flexDirection:'column',
+                        gap:          10,
                       }}
                     >
+                    <div style={{ display:'flex', alignItems:'center', gap:14 }}>
                       {/* File icon */}
                       <div style={{
                         width:          40,
@@ -310,7 +391,7 @@ export default function Resume() {
                         borderRadius:   10,
                         background:     r.status === 'processed'
                           ? 'rgba(16,185,129,0.1)'
-                          : r.status === 'failed'
+                          : isErrored
                           ? 'rgba(239,68,68,0.1)'
                           : 'rgba(245,158,11,0.1)',
                         display:        'flex',
@@ -320,7 +401,7 @@ export default function Resume() {
                       }}>
                         {r.status === 'processed'
                           ? <CheckCircle size={18} color="#10B981" />
-                          : r.status === 'failed'
+                          : isErrored
                           ? <AlertCircle size={18} color="#EF4444" />
                           : <Clock       size={18} color="#F59E0B" />
                         }
@@ -344,16 +425,34 @@ export default function Resume() {
                         </p>
                       </div>
 
+                      {/* Active badge */}
+                      {r.is_active && (
+                        <Badge color="success" dot>Active</Badge>
+                      )}
+
                       {/* Status badge */}
                       <Badge
                         color={
                           r.status === 'processed' ? 'success' :
-                          r.status === 'failed'    ? 'danger'  : 'warning'
+                          isErrored               ? 'danger'  : 'warning'
                         }
                         dot={r.status === 'pending'}
                       >
                         {r.status}
                       </Badge>
+
+                      {/* Set as active */}
+                      {!r.is_active && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<Star size={12} />}
+                          loading={activatingId === r.resume_id}
+                          onClick={() => setActive(r.resume_id)}
+                        >
+                          Set as Active
+                        </Button>
+                      )}
 
                       {/* Match button */}
                       {r.status === 'processed' && (
@@ -367,8 +466,47 @@ export default function Resume() {
                           Match Jobs
                         </Button>
                       )}
+
+                      {/* Retry */}
+                      {isErrored && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<RefreshCw size={12} />}
+                          loading={retryingId === r.resume_id}
+                          onClick={() => retryResume(r)}
+                        >
+                          Retry
+                        </Button>
+                      )}
+
+                      {/* Delete */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<Trash2 size={12} color="#EF4444" />}
+                        onClick={() => setConfirmTarget(r)}
+                      >
+                      </Button>
                     </div>
-                  ))}
+
+                    {/* Error banner */}
+                    {isErrored && (
+                      <div style={{
+                        display:'flex', alignItems:'flex-start', gap:8,
+                        background:'rgba(239,68,68,0.06)', border:'1px solid rgba(239,68,68,0.18)',
+                        borderRadius:8, padding:'8px 10px',
+                      }}>
+                        <AlertCircle size={13} color="#EF4444" style={{ flexShrink:0, marginTop:1 }} />
+                        <p style={{ fontSize:11.5, color:'var(--text-secondary)', lineHeight:1.5 }}>
+                          Resume parsing failed or timed out. You can retry or edit details manually.
+                          {r.is_active && ' This is your active resume — select another below or upload a new one to continue matching.'}
+                        </p>
+                      </div>
+                    )}
+                    </div>
+                  );
+                  })}
                 </div>
               )}
             </Card>
@@ -455,6 +593,37 @@ export default function Resume() {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        open={!!confirmTarget}
+        onClose={() => setConfirmTarget(null)}
+        title="Delete Resume"
+        maxWidth={420}
+      >
+        <p style={{ fontSize:13, color:'var(--text-secondary)', lineHeight:1.6, marginBottom:20 }}>
+          Are you sure you want to delete{' '}
+          <strong style={{ color:'var(--text-primary)' }}>
+            {confirmTarget ? getFileName(confirmTarget.file_path) : ''}
+          </strong>
+          ? This will permanently remove the file and cannot be undone.
+          {confirmTarget?.is_active && ' Since this is your active resume, the most recently uploaded remaining resume will become active.'}
+        </p>
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+          <Button variant="secondary" size="sm" onClick={() => setConfirmTarget(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            icon={<Trash2 size={12} />}
+            loading={deletingId === confirmTarget?.resume_id}
+            onClick={deleteResume}
+          >
+            Delete
+          </Button>
+        </div>
+      </Modal>
     </AppLayout>
   );
 }

@@ -41,6 +41,9 @@ export const resumeAPI = {
   }),
   getStatus: (id) => API.get(`/resume/status/${id}`),
   getMine:   ()   => API.get('/resume/my'),
+  getAll:    ()   => API.get('/resume'),
+  activate:  (id) => API.patch(`/resume/${id}/activate`),
+  remove:    (id) => API.delete(`/resume/${id}`),
 };
 
 // ── Jobs ─────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { userAPI, resumeAPI } from '../services/api';
 import { useAppToast } from '../components/layout/AppLayout';
@@ -16,89 +16,171 @@ import {
   Calendar, FileText, Award,
 } from 'lucide-react';
 
-/* ── Parse resume text into structured sections ── */
-function parseResumeText(text = '') {
-  if (!text) return {};
-  const lines    = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const result   = { skills:[], experience:[], education:[], contact:{} };
-
-  // Extract email
-  const emailMatch = text.match(/[\w.+-]+@[\w-]+\.\w+/);
-  if (emailMatch) result.contact.email = emailMatch[0];
-
-  // Extract phone
-  const phoneMatch = text.match(/(\+?[\d\s\-().]{8,})/);
-  if (phoneMatch) result.contact.phone = phoneMatch[0].trim();
-
-  // Extract LinkedIn
-  const linkedinMatch = text.match(/linkedin\.com\/in\/[\w-]+/i);
-  if (linkedinMatch) result.contact.linkedin = 'https://' + linkedinMatch[0];
-
-  // Extract GitHub
-  const githubMatch = text.match(/github\.com\/[\w-]+/i);
-  if (githubMatch) result.contact.github = 'https://' + githubMatch[0];
-
-  // Skills section
-  const skillsIdx = lines.findIndex(l => /^skills?$/i.test(l) || /technical skills/i.test(l));
-  if (skillsIdx !== -1) {
-    const end = lines.findIndex((l, i) => i > skillsIdx && /^(experience|education|work|project)/i.test(l));
-    const skillLines = lines.slice(skillsIdx + 1, end === -1 ? skillsIdx + 10 : end);
-    result.skills = skillLines
-      .flatMap(l => l.split(/[,·|•]/))
-      .map(s => s.trim())
-      .filter(s => s.length > 1 && s.length < 30);
-  }
-
-  // Simple experience extraction
-  const expKeywords = /engineer|developer|designer|analyst|manager|intern|lead/i;
-  result.experience = lines
-    .filter(l => expKeywords.test(l) && l.length > 10 && l.length < 80)
-    .slice(0, 5);
-
-  // Education
-  const eduKeywords = /university|college|bachelor|master|bsc|msc|degree|institute/i;
-  result.education = lines
-    .filter(l => eduKeywords.test(l) && l.length > 5 && l.length < 80)
-    .slice(0, 3);
-
-  return result;
-}
-
 export default function Profile() {
   const { user, updateUser } = useAuth();
   const toast               = useAppToast();
 
   const [editing,  setEditing]  = useState(false);
   const [saving,   setSaving]   = useState(false);
-  const [form,     setForm]     = useState({ full_name: user?.full_name || '' });
+  const [form,     setForm]     = useState({
+    full_name:     user?.full_name || '',
+    phone:         '',
+    linkedin_url:  '',
+    github_url:    '',
+    portfolio_url: '',
+    location:      '',
+  });
+  const [profile,  setProfile]  = useState(null);
   const [resumes,  setResumes]  = useState([]);
-  const [parsed,   setParsed]   = useState({});
   const [loading,  setLoading]  = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [activeTab,setActiveTab]= useState('resume'); // 'resume' | 'settings'
 
+  // NOTE: this ref must be reset to true on every effect *setup*, not just cleared on
+  // cleanup — under React StrictMode (enabled in main.jsx), effects run
+  // setup -> cleanup -> setup on mount. An empty-bodied effect that only clears the
+  // flag on cleanup leaves it permanently `false` after the simulated remount, which
+  // silently short-circuits every later `finally` guarded by it — the exact cause of
+  // the spinners getting stuck forever on this page.
+  const isMountedRef = useRef(true);
   useEffect(() => {
-    resumeAPI.getMine()
-      .then(r => {
-        const list = r.data || [];
-        setResumes(list);
-        const processed = list.find(r => r.status === 'processed');
-        // We'd need raw_text but it's not returned in list — use what we have
-        setParsed(parseResumeText(''));
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
   }, []);
+
+  const applyProfile = (data) => {
+    if (!data) return;
+    setProfile(data);
+    setForm(f => ({
+      ...f,
+      full_name:     data.full_name         || f.full_name,
+      phone:         data.contact?.phone    || '',
+      linkedin_url:  data.contact?.linkedin || '',
+      github_url:    data.contact?.github   || '',
+      portfolio_url: data.contact?.portfolio|| '',
+      location:      data.contact?.location || '',
+    }));
+  };
+
+  /* ── Initial load: resumes + profile fetched independently in parallel — neither
+     one waits on the other, so a slow/failed profile fetch can never block the
+     resumes list (or the loading spinner) from resolving, and vice versa. ── */
+  const fetchProfileData = async () => {
+    setLoading(true);
+    try {
+      const [resumeRes, profileRes] = await Promise.all([
+        resumeAPI.getAll().catch(() => ({ data: [] })),
+        userAPI.getProfile().catch(() => ({ data: null })),
+      ]);
+      if (!isMountedRef.current) return;
+
+      setResumes(resumeRes.data || []);
+      applyProfile(profileRes.data);
+
+      if (!profileRes.data) {
+        toast?.error('Could not load extended profile details. Showing basic account info.');
+      }
+    } catch {
+      // Only reachable if Promise.all itself throws synchronously — the per-call
+      // .catch() above already absorbs normal request failures.
+      if (isMountedRef.current) {
+        setResumes([]);
+        toast?.error('Failed to load profile data.');
+      }
+    } finally {
+      if (isMountedRef.current) setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchProfileData(); }, []);
+
+  /* ── Re-fetch profile (skills/experience/education/contact) whenever the active resume changes ── */
+  const activeResumeId = resumes.find(r => r.is_active)?.resume_id ?? null;
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return; }
+
+    const refreshProfile = async () => {
+      setProfileLoading(true);
+      try {
+        const { data } = await userAPI.getProfile();
+        applyProfile(data);
+      } catch {
+        toast?.error('Failed to refresh profile after resume change.');
+      } finally {
+        if (isMountedRef.current) setProfileLoading(false);
+      }
+    };
+
+    refreshProfile();
+  }, [activeResumeId]);
 
   const save = async () => {
     setSaving(true);
     try {
-      await userAPI.updateProfile({ full_name: form.full_name });
-      updateUser({ full_name: form.full_name });
+      const payload = {
+        full_name:     form.full_name,
+        phone:         form.phone,
+        linkedin_url:  form.linkedin_url,
+        github_url:    form.github_url,
+        portfolio_url: form.portfolio_url,
+        location:      form.location,
+      };
+      const { data } = await userAPI.updateProfile(payload);
+      updateUser({ full_name: data.full_name });
+      setProfile(p => ({ ...p, ...data }));
       setEditing(false);
       toast?.success('Profile updated successfully!');
     } catch (e) {
       toast?.error(e.response?.data?.message || 'Update failed.');
     } finally { setSaving(false); }
+  };
+
+  /* ── Inline Contact-card editing ── */
+  const [contactEditing, setContactEditing] = useState(false);
+  const [contactSaving,  setContactSaving]  = useState(false);
+  const [contactForm,    setContactForm]    = useState({
+    phone: '', location: '', linkedin: '', github: '', portfolio: '',
+  });
+
+  const startEditContact = () => {
+    setContactForm({
+      phone:     profile?.contact?.phone     || '',
+      location:  profile?.contact?.location  || '',
+      linkedin:  profile?.contact?.linkedin  || '',
+      github:    profile?.contact?.github    || '',
+      portfolio: profile?.contact?.portfolio || '',
+    });
+    setContactEditing(true);
+  };
+
+  const saveContact = async () => {
+    setContactSaving(true);
+    try {
+      const { data } = await userAPI.updateProfile({
+        phone:     contactForm.phone,
+        location:  contactForm.location,
+        linkedin:  contactForm.linkedin,
+        github:    contactForm.github,
+        portfolio: contactForm.portfolio,
+      });
+      setProfile(p => ({ ...p, ...data }));
+      // Keep the Settings-tab form draft in sync so re-opening it doesn't show stale values
+      setForm(f => ({
+        ...f,
+        phone:         data.contact?.phone         || '',
+        linkedin_url:  data.contact?.linkedin      || '',
+        github_url:    data.contact?.github        || '',
+        portfolio_url: data.contact?.portfolio     || '',
+        location:      data.contact?.location      || '',
+      }));
+      setContactEditing(false);
+      toast?.success('Contact info updated!');
+    } catch (e) {
+      toast?.error(e.response?.data?.message || 'Failed to update contact info.');
+    } finally {
+      setContactSaving(false);
+    }
   };
 
   const processedResume = resumes.find(r => r.status === 'processed');
@@ -189,29 +271,91 @@ export default function Profile() {
             {/* Left — contact card */}
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               <Card>
-                <p style={{ fontWeight:600, fontSize:14, color:'var(--text-primary)', marginBottom:16 }}>Contact</p>
-                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                  {[
-                    { icon:Mail,     label:'Email',    value:user?.email,                  href:`mailto:${user?.email}` },
-                    { icon:Globe, label:'LinkedIn', value:parsed.contact?.linkedin ? 'View Profile' : 'Not found', href:parsed.contact?.linkedin },
-                    { icon:Link2, label:'GitHub',   value:parsed.contact?.github   ? 'View Profile' : 'Not found', href:parsed.contact?.github   },
-                    { icon:Phone,    label:'Phone',    value:parsed.contact?.phone || 'Add in resume' },
-                  ].map(({ icon:Icon, label, value, href }) => (
-                    <div key={label} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
-                      <div style={{ width:30, height:30, borderRadius:8, background:'rgba(99,102,241,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                        <Icon size={13} color="var(--primary)" />
-                      </div>
-                      <div style={{ minWidth:0 }}>
-                        <p style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</p>
-                        {href ? (
-                          <a href={href} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'var(--primary)' }}>{value}</a>
-                        ) : (
-                          <p style={{ fontSize:12, color: value.includes('Not found')||value.includes('Add') ? 'var(--text-muted)' : 'var(--text-primary)' }}>{value}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                  <p style={{ fontWeight:600, fontSize:14, color:'var(--text-primary)' }}>Contact</p>
+                  {!contactEditing && (
+                    <button
+                      onClick={startEditContact}
+                      title="Edit contact info"
+                      style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', display:'flex', padding:4 }}
+                    >
+                      <Edit3 size={13} />
+                    </button>
+                  )}
                 </div>
+
+                {contactEditing ? (
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    <Input
+                      label="Phone"
+                      value={contactForm.phone}
+                      onChange={e => setContactForm(f => ({ ...f, phone:e.target.value }))}
+                      icon={<Phone size={14}/>}
+                      placeholder="+92 300 1234567"
+                    />
+                    <Input
+                      label="Location"
+                      value={contactForm.location}
+                      onChange={e => setContactForm(f => ({ ...f, location:e.target.value }))}
+                      icon={<MapPin size={14}/>}
+                      placeholder="Lahore, Pakistan"
+                    />
+                    <Input
+                      label="LinkedIn"
+                      value={contactForm.linkedin}
+                      onChange={e => setContactForm(f => ({ ...f, linkedin:e.target.value }))}
+                      icon={<Globe size={14}/>}
+                      placeholder="https://linkedin.com/in/yourname"
+                    />
+                    <Input
+                      label="GitHub"
+                      value={contactForm.github}
+                      onChange={e => setContactForm(f => ({ ...f, github:e.target.value }))}
+                      icon={<Link2 size={14}/>}
+                      placeholder="https://github.com/yourname"
+                    />
+                    <Input
+                      label="Portfolio"
+                      value={contactForm.portfolio}
+                      onChange={e => setContactForm(f => ({ ...f, portfolio:e.target.value }))}
+                      icon={<Globe size={14}/>}
+                      placeholder="https://yourportfolio.com"
+                    />
+                    <div style={{ display:'flex', gap:8 }}>
+                      <Button variant="primary" size="sm" loading={contactSaving} icon={<Save size={12}/>} onClick={saveContact}>
+                        Save Changes
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => setContactEditing(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    {[
+                      { icon:Mail,     label:'Email',     value:profile?.contact?.email || user?.email,                     href:`mailto:${profile?.contact?.email || user?.email}` },
+                      { icon:Globe,    label:'LinkedIn',   value:profile?.contact?.linkedin  ? 'View Profile' : 'Not set', href:profile?.contact?.linkedin },
+                      { icon:Link2,    label:'GitHub',     value:profile?.contact?.github    ? 'View Profile' : 'Not set', href:profile?.contact?.github   },
+                      { icon:Globe,    label:'Portfolio',  value:profile?.contact?.portfolio ? 'View Site'    : 'Not set', href:profile?.contact?.portfolio },
+                      { icon:Phone,    label:'Phone',      value:profile?.contact?.phone    || 'Not set' },
+                      { icon:MapPin,   label:'Location',   value:profile?.contact?.location || 'Not set' },
+                    ].map(({ icon:Icon, label, value, href }) => (
+                      <div key={label} style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                        <div style={{ width:30, height:30, borderRadius:8, background:'rgba(99,102,241,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                          <Icon size={13} color="var(--primary)" />
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                          <p style={{ fontSize:10, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{label}</p>
+                          {href ? (
+                            <a href={href} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'var(--primary)' }}>{value}</a>
+                          ) : (
+                            <p style={{ fontSize:12, color: value === 'Not set' ? 'var(--text-muted)' : 'var(--text-primary)' }}>{value}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
 
               {/* Resume files */}
@@ -243,7 +387,9 @@ export default function Profile() {
             {/* Right — resume content */}
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
-              {!processedResume ? (
+              {loading ? (
+                <Card><div style={{ display:'flex', justifyContent:'center', padding:32 }}><Spinner size={28} /></div></Card>
+              ) : !processedResume ? (
                 <Card>
                   <div style={{ textAlign:'center', padding:'32px 24px' }}>
                     <div style={{ width:56, height:56, borderRadius:14, background:'rgba(99,102,241,0.1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
@@ -262,15 +408,21 @@ export default function Profile() {
                 </Card>
               ) : (
                 <>
+                  {profileLoading && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'var(--text-muted)' }}>
+                      <Spinner size={14} /> Refreshing profile for the newly active resume...
+                    </div>
+                  )}
+
                   {/* Skills */}
                   <Card>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
                       <Code2 size={15} color="var(--primary)" />
                       <p style={{ fontWeight:600, fontSize:14, color:'var(--text-primary)' }}>Technical Skills</p>
                     </div>
-                    {parsed.skills?.length > 0 ? (
+                    {profile?.skills?.length > 0 ? (
                       <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
-                        {parsed.skills.map(s => (
+                        {profile.skills.map(s => (
                           <span key={s} style={{
                             padding:'5px 12px', borderRadius:8, fontSize:12, fontWeight:500,
                             background:'rgba(99,102,241,0.1)', color:'var(--badge-primary-text)',
@@ -293,16 +445,21 @@ export default function Profile() {
                       <Briefcase size={15} color="#8B5CF6" />
                       <p style={{ fontWeight:600, fontSize:14, color:'var(--text-primary)' }}>Work Experience</p>
                     </div>
-                    {parsed.experience?.length > 0 ? (
+                    {profile?.experience?.length > 0 ? (
                       <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                        {parsed.experience.map((exp, i) => (
-                          <div key={i} style={{ display:'flex', gap:12, paddingBottom:12, borderBottom: i<parsed.experience.length-1 ? '1px solid var(--border)' : 'none' }}>
+                        {profile.experience.map((exp, i) => (
+                          <div key={i} style={{ display:'flex', gap:12, paddingBottom:12, borderBottom: i<profile.experience.length-1 ? '1px solid var(--border)' : 'none' }}>
                             <div style={{ width:36, height:36, borderRadius:9, background:'rgba(139,92,246,0.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                               <Briefcase size={15} color="#8B5CF6" />
                             </div>
                             <div style={{ flex:1 }}>
-                              <p style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:2 }}>{exp}</p>
-                              <p style={{ fontSize:11, color:'var(--text-muted)' }}>Extracted from resume</p>
+                              <p style={{ fontSize:13, fontWeight:600, color:'var(--text-primary)', marginBottom:2 }}>
+                                {exp.role || 'Role not detected'}
+                                {exp.company && <span style={{ fontWeight:400, color:'var(--text-secondary)' }}> · {exp.company}</span>}
+                              </p>
+                              <p style={{ fontSize:11, color:'var(--text-muted)' }}>
+                                {exp.duration || 'Extracted from resume'}
+                              </p>
                             </div>
                           </div>
                         ))}
@@ -320,12 +477,18 @@ export default function Profile() {
                       <GraduationCap size={15} color="#10B981" />
                       <p style={{ fontWeight:600, fontSize:14, color:'var(--text-primary)' }}>Education</p>
                     </div>
-                    {parsed.education?.length > 0 ? (
+                    {profile?.education?.length > 0 ? (
                       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                        {parsed.education.map((edu, i) => (
+                        {profile.education.map((edu, i) => (
                           <div key={i} style={{ display:'flex', gap:10, padding:'10px 12px', background:'var(--bg-elevated)', borderRadius:10, border:'1px solid var(--border)' }}>
                             <GraduationCap size={14} color="#10B981" style={{ flexShrink:0, marginTop:2 }} />
-                            <p style={{ fontSize:13, color:'var(--text-primary)' }}>{edu}</p>
+                            <div>
+                              <p style={{ fontSize:13, color:'var(--text-primary)' }}>
+                                {edu.degree || 'Degree not detected'}
+                                {edu.institution && <span style={{ color:'var(--text-secondary)' }}> · {edu.institution}</span>}
+                              </p>
+                              {edu.year && <p style={{ fontSize:11, color:'var(--text-muted)' }}>{edu.year}</p>}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -358,6 +521,41 @@ export default function Profile() {
                       icon={<User size={14}/>}
                     />
                     <Input label="Email" value={user?.email} disabled icon={<Mail size={14}/>} hint="Email cannot be changed" />
+                    <Input
+                      label="Phone"
+                      value={form.phone}
+                      onChange={e => setForm(f => ({ ...f, phone:e.target.value }))}
+                      icon={<Phone size={14}/>}
+                      placeholder="+92 300 1234567"
+                    />
+                    <Input
+                      label="Location"
+                      value={form.location}
+                      onChange={e => setForm(f => ({ ...f, location:e.target.value }))}
+                      icon={<MapPin size={14}/>}
+                      placeholder="Lahore, Pakistan"
+                    />
+                    <Input
+                      label="LinkedIn URL"
+                      value={form.linkedin_url}
+                      onChange={e => setForm(f => ({ ...f, linkedin_url:e.target.value }))}
+                      icon={<Globe size={14}/>}
+                      placeholder="https://linkedin.com/in/yourname"
+                    />
+                    <Input
+                      label="GitHub URL"
+                      value={form.github_url}
+                      onChange={e => setForm(f => ({ ...f, github_url:e.target.value }))}
+                      icon={<Link2 size={14}/>}
+                      placeholder="https://github.com/yourname"
+                    />
+                    <Input
+                      label="Portfolio URL"
+                      value={form.portfolio_url}
+                      onChange={e => setForm(f => ({ ...f, portfolio_url:e.target.value }))}
+                      icon={<Globe size={14}/>}
+                      placeholder="https://yourportfolio.com"
+                    />
                     <div style={{ display:'flex', gap:10 }}>
                       <Button variant="primary" size="md" loading={saving} icon={<Save size={13}/>} onClick={save}>
                         Save Changes
@@ -373,6 +571,11 @@ export default function Profile() {
                       { label:'Full Name', value:user?.full_name, icon:User   },
                       { label:'Email',     value:user?.email,     icon:Mail   },
                       { label:'Role',      value:user?.role || 'freelancer', icon:Award },
+                      { label:'Phone',     value:form.phone         || 'Not set', icon:Phone },
+                      { label:'Location',  value:form.location      || 'Not set', icon:MapPin },
+                      { label:'LinkedIn',  value:form.linkedin_url  || 'Not set', icon:Globe },
+                      { label:'GitHub',    value:form.github_url   || 'Not set', icon:Link2 },
+                      { label:'Portfolio', value:form.portfolio_url|| 'Not set', icon:Globe },
                     ].map(({ label, value, icon:Icon }) => (
                       <div key={label} style={{ display:'flex', gap:12, padding:'12px 14px', background:'var(--bg-elevated)', borderRadius:10, border:'1px solid var(--border)' }}>
                         <div style={{ width:32, height:32, borderRadius:8, background:'rgba(99,102,241,0.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>

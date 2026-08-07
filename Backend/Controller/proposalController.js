@@ -1,17 +1,23 @@
 const axios            = require('axios');
 const { getPool, sql } = require('../config/db');
+const { getActiveResumeId } = require('../services/resumeService');
 
 const FASTAPI_URL = 'http://localhost:8000';
 
 // POST /api/proposals/generate
-// Calls the FastAPI DeepSeek proposal generator. Not persisted — the user saves explicitly.
+// Calls the FastAPI DeepSeek proposal generator using the user's active resume.
+// Not persisted — the user saves explicitly.
 const generateProposal = async (req, res, next) => {
   try {
-    const { resume_id, job_id, content_type } = req.body;
+    const { job_id, content_type } = req.body;
     const user_id = req.user.user_id;
 
-    if (!resume_id || !job_id || !content_type)
-      return res.status(400).json({ message: 'resume_id, job_id and content_type are required' });
+    if (!job_id || !content_type)
+      return res.status(400).json({ message: 'job_id and content_type are required' });
+
+    const resume_id = await getActiveResumeId(user_id);
+    if (!resume_id)
+      return res.status(400).json({ message: 'Please select or upload an active resume.' });
 
     const response = await axios.post(`${FASTAPI_URL}/generate-proposal`, {
       user_id,
